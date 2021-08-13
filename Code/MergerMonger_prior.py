@@ -1,13 +1,15 @@
 '''
 ~~~
 Iteratively run MergerMonger on the full SDSS sample to make the figure: 'adjusting_prior_all.png'
-The goal is to be able to adjust the prior without adjusting the alphas.
+The goal is to be able to adjust the prior without adjusting the alphas to determine how much the choice of input priors affects the measured merger fraction.
 ~~~
 '''
 from MergerMonger import load_LDA_from_simulation
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import pandas as pd
+from util_LDA import cross_term
 
 run = 'major_merger'
 LDA = load_LDA_from_simulation(run)
@@ -33,6 +35,20 @@ print('intercept', LDA[4])
 
 print('len intercept', len(LDA[4]))
 
+input_singular = []
+crossterms = []
+ct_1 = []
+ct_2 = []
+for j in range(len(LDA[2])):
+    if '*' in LDA[2][j]:
+        crossterms.append(LDA[2][j])
+        split = str.split(LDA[2][j],'*')
+        ct_1.append(split[0])
+        ct_2.append(split[1])
+        
+    else:
+        input_singular.append(LDA[2][j])
+        
 
 
 
@@ -46,26 +62,30 @@ plt.axvline(x=0)
 
 # Move the line
 # what the original contribution is:
-prior_line = math.log(0.9/0.1)
-prior_50 = math.log(1)
-print('original prior contribution', prior_line)
-print('50/50 contribution', prior_50)
+fmerg_prior = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+color = ['#16BAC5','#5FBFF9','#F26430','#171D1C',
+    '#5863F8','#EF767A','#721817','#466060','#0E0F19']
+for i in range(len(fmerg_prior)):
 
-nmerg = len(np.where(np.array(LDA[8]) > (prior_50 - prior_line))[0])
 
-plt.axvline(x = 0)
-plt.axvline(x = 0 + (prior_50 - prior_line))
-plt.annotate(r'$f_{\mathrm{merg}}$ = '+str(nmerg/len(LDA[8])), xy=(0.02, 0.95), xycoords='axes fraction')
 
-plt.show()
+    prior_line = math.log(fmerg_prior[i]/(1-fmerg_prior[i]))
+    print('this is the term added from the intercept', fmerg_prior[i], prior_line)
+    nmerg = len(np.where(np.array(LDA[8]) > (prior_line))[0])
+
+    #plt.axvline(x = 0)
+    plt.axvline(x = prior_line, color=color[i])
+    plt.annotate(r'$f_{\mathrm{in}}$ = '+str(fmerg_prior[i])+', $f_{\mathrm{merg}}$ = '+str(round(nmerg/len(LDA[8]),2)), xy=(-14, 55-3*i), xycoords='data', color=color[i])
+
+plt.savefig('../Figures/adjusting_prior_simulation.png', dpi=1000)
 
 # Find out what fraction of galaxies are above the LD1 = 0 line
 
-STOP
+
     
     
 
-type_gal = 'DR12_predictors_all'
+type_gal = 'DR12_predictors_MPI'
 verbose='no'
 
 
@@ -84,49 +104,15 @@ print(prior_list)
 fmerg = []
 skipped_LDA = []
 for i in range(np.shape(prior_list)[0]):
-    priors = prior_list[i]
-    #was: LDA_prep_predictors_all_combined_major.txt
-    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
-
-    #Rename all of the kinematic columns (is this necessary?)
-    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
-             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
-              'varsig':'$\sigma_{\sigma}$',
-             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
-             'abskewsig':'$|h_{3,\sigma}|$',
-             'meansig':'$\mu_{\sigma}$',
-             'varvel':'$\sigma_{V}$'},
-    inplace=True)
-    #was LDA_prep_predictors_all_combined.txt
-    #LDA_img_ratio_statmorph_fg3_m12_A_S.txt'
-    df.columns = [l for i,l in sorted(feature_dict.items())]
-
-    df.dropna(how="all", inplace=True) # to drop the empty line at file-end
-    df.dropna(inplace=True) # to drop the empty line at file-end
-
-
-
-    myr=[]
-    myr_non=[]
-    for j in range(len(df)):
-        if df[['class label']].values[j][0]==0.0:
-            myr_non.append(df[['Myr']].values[j][0])
-        else:
-            myr.append(df[['Myr']].values[j][0])
-
-    myr_non=sorted(list(set(myr_non)))
-    myr=sorted(list(set(myr)))
-            
-            
-
-    terms_RFR, reject_terms_RFR = run_RFR(df, features_list, run, verbose)
-    try:
-        output_LDA = run_LDA(run, df, priors,terms_RFR, myr, myr_non, 21,  verbose)
-    except IndexError:
-        skipped_LDA.append(i)
-        fmerg.append(0)
-        continue
-
+    
+    # Okay add in the additional term to correct for shifting the threshold around in f_in:
+    starting_prior = math.log(0.1/(1-0.1))
+    
+    new_line = math.log(prior_list[i][0]/(1-prior_list[i][0]))
+    
+    shift = new_line - starting_prior
+    
+    
 
 
     #~~~~~~~
@@ -149,12 +135,16 @@ for i in range(np.shape(prior_list)[0]):
                   'Sersic N',
                 'Shape Asymmetry (A_S)', 'Sersic AR'))}
 
-    df2 = pd.read_csv('../Tables/all_sdss_corrected_A_n_A_offcenter.txt', sep='\t')
+    df2 = pd.io.parsers.read_csv('../Tables/SDSS_'+str(type_gal)+'_all.txt', sep='\t')
+    df2.columns = ['ID','Sep','Flux Ratio',
+      'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
     
-    
-
-    input_singular = terms_RFR
+    df2 = df2[0:1000]
     #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
+    
+    
+    '''
+    # Need to fix this section
     crossterms = []
     ct_1 = []
     ct_2 = []
@@ -162,20 +152,27 @@ for i in range(np.shape(prior_list)[0]):
         for i in range(len(input_singular)):
             if j == i or i < j:
                 continue
+                
+            print(input_singular[j], input_singular[i])
             #input_singular.append(input_singular[j]+'*'+input_singular[i])
             crossterms.append(input_singular[j]+'*'+input_singular[i])
             ct_1.append(input_singular[j])
             ct_2.append(input_singular[i])
-
+    
+    
+    
     inputs = input_singular + crossterms
+    '''
 
     # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
     for j in range(len(crossterms)):
         
         df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
         
-
-    X_gal = df2[output_LDA[2]].values
+    print('did I add them?', df2, df2.columns)
+    print('what you r trying to get values from', LDA[2])
+    
+    X_gal = df2[LDA[2]].values
 
 
     p_merg_list = []
@@ -183,9 +180,9 @@ for i in range(np.shape(prior_list)[0]):
 
     for j in range(len(X_gal)):
         #print(X_gal[j])
-        X_standardized = list((X_gal[j]-output_LDA[0])/output_LDA[1])
+        X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
         # use the output from the simulation to assign LD1 value:
-        LD1_gal = float(np.sum(X_standardized*output_LDA[3])+output_LDA[4])
+        LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4]+shift)
         
         LD1_list.append(LD1_gal)
         
@@ -203,13 +200,14 @@ for i in range(np.shape(prior_list)[0]):
     frac_0_1 = (len(np.where(np.array(p_merg_list) >0.999)[0]) + len(np.where(np.array(p_merg_list) <0.001)[0]))/len(p_merg_list)
     
     logLD1 = [math.log10(abs(x)) for x in LD1_list]
+    '''
     plt.clf()
     plt.title('Fraction of 0s and 1s = '+str(round(frac_0_1,2)))
     plt.scatter(logLD1, p_merg_list, s=1)
     plt.xlabel('log LD1')
     plt.ylabel('p_merg')
-    plt.savefig('../LDA_figures/LD1_and_pmerg_'+str(run)+'_'+str(i)+'.png')
-    
+    plt.savefig('../Figures/LD1_and_pmerg_'+str(run)+'_'+str(i)+'.png')
+    '''
     
     
     p_merg_merg = []
@@ -231,7 +229,12 @@ print('fmerg out', fmerg)
 print('skip these', skipped_LDA)
 
 plt.clf()
+ys = [x for x in np.array(prior_list)[:,0]]
+plt.plot(np.array(prior_list)[:,0], ys, color='black')
+
 plt.scatter(np.array(prior_list)[:,0], fmerg)
+
 plt.xlabel(r'Prior, $f_{\mathrm{merg}}$')
 plt.ylabel(r'Output, $f_{\mathrm{merg}}$')
-plt.savefig('../LDA_figures/adjusting_prior_'+str(run)+'.png')
+plt.axvline(x=0.1)
+plt.savefig('../Figures/adjusting_prior_'+str(run)+'.png')
