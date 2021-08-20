@@ -38,9 +38,8 @@ def locate_min(a):
     return smallest, [index for index, element in enumerate(a)
                   if smallest == element]
 
-def load_LDA_from_simulation(run, type_gal = 'DR12_predictors_MPI', name='img',
-    prefix_frames = '/Users/beckynevin/CfA_Code/Kinematics_and_Imaging_Merger_Identification/imaging/',
-    weighted = 0.5, verbose=True, plot=True):
+def load_LDA_from_simulation(run, type_gal = 'predictors', name='img',
+    prefix_frames = '/Users/beckynevin/CfA_Code/Kinematics_and_Imaging_Merger_Identification/imaging/',verbose=True, plot=True):
 
 
     feature_dict = {i:label for i,label in zip(
@@ -189,7 +188,7 @@ def load_LDA_from_simulation(run, type_gal = 'DR12_predictors_MPI', name='img',
                 LDA_ID_merg.append(LDA_ID[j])
                 indices_merg.append(j)
             
-            p_merg_sim = 1/(1 + np.exp(-weighted*LDA_ID[j]))
+            p_merg_sim = 1/(1 + np.exp(-LDA_ID[j]))
             if LDA_ID[j]<0:#then its a nonmerger
                 nonmerg_gini_LDA.append(df['Gini'].values[j])
                 nonmerg_m20_LDA.append(df['M20'].values[j])
@@ -356,7 +355,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
 
 
     # Make a table with merger probabilities and other diagnostics:
-    file_out = open('../Tables/LDA_out_all_SDSS_weight_'+str(weighted)+'_'+str(type_gal)+'_'+str(run)+'.txt','w')
+    file_out = open('../Tables/LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
     file_out.write('MaNGA_ID'+'\t'+
     'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
     #+'Second_term'+'\t'+'Second_coef'+'\n')
@@ -387,8 +386,8 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         # Therefore, in the probability equation p_merg = e^delta_1/(e^delta_1+e^delta_0)
         # you can sub in LD1 and instead end up with p_merg = 1/(1+e^-LD1)
         
-        p_merg = 1/(1 + np.exp(-weighted*LD1_gal))
-        p_nonmerg = 1/(1 + np.exp(weighted*LD1_gal))
+        p_merg = 1/(1 + np.exp(-LD1_gal))
+        p_nonmerg = 1/(1 + np.exp(LD1_gal))
         if LD1_gal > 0:
             merg = 1
             # select the thing that is the most positive
@@ -710,7 +709,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             plt.title('Major')
         if run=='minor_merger':
             plt.title('Minor')
-        plt.savefig('../LDA_figures/hist_LDA_divided_p_weight'+str(weighted)+'_'+str(run)+'.pdf')
+        plt.savefig('../LDA_figures/hist_LDA_divided_p_'+str(run)+'.pdf')
 
     print('~~~~~~~Analysis Results~~~~~~')
 
@@ -863,7 +862,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         ax4.set_ylabel(second_imp_nonmerg)
         ax4.set_aspect((yedgesnon[-1]-yedgesnon[0])/(xedgesnon[-1]-xedgesnon[0]))
 
-        plt.savefig('../LDA_figures/first_sec_separate_weigh'+str(weighted)+'_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../LDA_figures/first_sec_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
         
         # Okay try to make more of a density-based scatter plot for the SDSS galaxies:
@@ -1241,7 +1240,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         ax4.set_ylabel(r'$Gini$')
         ax4.set_aspect((ymax-ymin)/(xmax-xmin))
 
-        plt.savefig('../LDA_figures/gini_m20_separate_weigh'+str(weighted)+'_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../LDA_figures/gini_m20_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
         
         
@@ -1332,7 +1331,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         ax3.axvline(x=0.35, ls='--', color='black')
         ax4.axvline(x=0.35, ls='--', color='black')
 
-        plt.savefig('../LDA_figures/C_A_separate_weigh'+str(weighted)+'_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../LDA_figures/C_A_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
         
         #~~~~~~~~~~~~~~~~~ Now, make this for n-A_S ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1422,7 +1421,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         ax3.axvline(x=0.2, ls='--', color='black')
         ax4.axvline(x=0.2, ls='--', color='black')
 
-        plt.savefig('../LDA_figures/n_A_S_separate_weigh'+str(weighted)+'_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../LDA_figures/n_A_S_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
 
 
@@ -1662,7 +1661,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             counter_i+=1
             
 
-    plt.savefig('../LDA_figures/probability_panel_nonmergers_SDSS_weigh'+str(weighted)+'_'+str(type_gal)+'_'+str(run)+'.pdf')
+    plt.savefig('../LDA_figures/probability_panel_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
     plt.clf()
     fig, axs = plt.subplots(2,5, figsize=(15, 7), facecolor='w', edgecolor='k')
@@ -1720,7 +1719,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             counter_i+=1
             
 
-    plt.savefig('../LDA_figures/probability_panel_mergers_SDSS_weigh'+str(weighted)+'_'+str(type_gal)+'_'+str(run)+'.pdf')
+    plt.savefig('../LDA_figures/probability_panel_mergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
 
 
