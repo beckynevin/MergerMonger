@@ -248,18 +248,22 @@ def load_LDA_from_simulation(run, type_gal = 'predictors', name='img',
 
     return output_LDA
 
-def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
+def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
     #~~~~~~~
     # Now bring in the SDSS galaxies!
     #~~~~~~~
 
-
+    print('loading up predictor value table........')
     #prefix = '/Users/beckynevin/CfA_Code/Cannon/parallel_SDSS/'
     df2 = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all.txt', sep='\t')
-    df2.columns = ['ID','Sep','Flux Ratio',
-      'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
+    
+    
+    
+    #df2.columns = ['ID','Sep','Flux Ratio',
+    #  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
       
-
+    if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
+        df2 = df2.iloc[: , 1:]
 
     #df2.columns = [l for i,l in sorted(feature_dict2.items())]
     '''
@@ -297,6 +301,23 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
     # make it way shorter
     #df2 = df2[50000:57000]
 
+    input_singular = []
+    crossterms = []
+    ct_1 = []
+    ct_2 = []
+    for j in range(len(LDA[2])):
+        if '*' in LDA[2][j]:
+            crossterms.append(LDA[2][j])
+            split = str.split(LDA[2][j],'*')
+            ct_1.append(split[0])
+            ct_2.append(split[1])
+            
+        else:
+            input_singular.append(LDA[2][j])
+            
+    inputs = input_singular + crossterms
+    
+    '''
     input_singular = terms_RFR
     #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
     crossterms = []
@@ -312,14 +333,14 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             ct_2.append(input_singular[i])
 
     inputs = input_singular + crossterms
-
+    '''
     # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
     for j in range(len(crossterms)):
         
         df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
         
 
-    X_gal = df2[inputs_all].values
+    X_gal = df2[inputs].values
 
 
 
@@ -355,8 +376,9 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
 
 
     # Make a table with merger probabilities and other diagnostics:
-    file_out = open('../Tables/LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
-    file_out.write('MaNGA_ID'+'\t'+
+    print('making table of LDA output for all galaxies.....')
+    file_out = open(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
+    file_out.write('ID'+'\t'+
     'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
     #+'Second_term'+'\t'+'Second_coef'+'\n')
 
@@ -373,10 +395,10 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
 
     for j in range(len(X_gal)):
         #print(X_gal[j])
-        X_standardized = list((X_gal[j]-std_mean)/std_std)
+        X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
         X_std.append(X_standardized)
         # use the output from the simulation to assign LD1 value:
-        LD1_gal = float(np.sum(X_standardized*output_LDA[3])+output_LDA[4])
+        LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
         
         
         
@@ -391,9 +413,9 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         if LD1_gal > 0:
             merg = 1
             # select the thing that is the most positive
-            max_idx = np.argmax(X_standardized*output_LDA[3])
-            most_influential_coeff = (X_standardized*output_LDA[3])[0,max_idx]
-            most_influential_term = output_LDA[2][max_idx]
+            max_idx = np.argmax(X_standardized*LDA[3])
+            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx]
+            most_influential_term = LDA[2][max_idx]
             
             most_influential_merg.append(most_influential_term)
             most_influential_merg_c.append(most_influential_coeff)
@@ -404,9 +426,9 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             LDA_nonmerg_SDSS.append(LD1_gal)
             p_merg_nonmerg_SDSS.append(p_merg)
             # select the thing that is the most positive
-            max_idx = np.argmin(X_standardized*output_LDA[3])
-            most_influential_coeff = (X_standardized*output_LDA[3])[0,max_idx]
-            most_influential_term = output_LDA[2][max_idx]
+            max_idx = np.argmin(X_standardized*LDA[3])
+            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx]
+            most_influential_term = LDA[2][max_idx]
             
             most_influential_nonmerg.append(most_influential_term)
             most_influential_nonmerg_c.append(most_influential_coeff)
@@ -430,25 +452,25 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
 
 
 
-    if verbose=='yes':
+    if verbose:
         plt.clf()
         plt.hist(testing_Gini)
-        plt.savefig('../LDA_figures/hist_Gini.pdf')
+        plt.savefig('../Figures/hist_Gini.pdf')
         plt.clf()
         plt.hist(testing_M20)
-        plt.savefig('../LDA_figures/hist_M20.pdf')
+        plt.savefig('../Figures/hist_M20.pdf')
         plt.clf()
         plt.hist(testing_C)
-        plt.savefig('../LDA_figures/hist_C.pdf')
+        plt.savefig('../Figures/hist_C.pdf')
         plt.clf()
         plt.hist(testing_A)
-        plt.savefig('../LDA_figures/hist_A.pdf')
+        plt.savefig('../Figures/hist_A.pdf')
         plt.clf()
         plt.hist(testing_n)
-        plt.savefig('../LDA_figures/hist_n.pdf')
+        plt.savefig('../Figures/hist_n.pdf')
         plt.clf()
         plt.hist(testing_A_S)
-        plt.savefig('../LDA_figures/hist_A_S.pdf')
+        plt.savefig('../Figures/hist_A_S.pdf')
         
         
     #Get numbers of which was the most influential coefficient for both mergers and nonmergers:
@@ -590,7 +612,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             
             
                     
-    if verbose=='yes':
+    if verbose:
         # This is all about making a panel plot of weird parameters
         plt.clf()
         fig, axs = plt.subplots(2,2, figsize=(5, 5), facecolor='w', edgecolor='k')
@@ -631,9 +653,9 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             counter+=1
 
         plt.tight_layout()
-        plt.savefig('../LDA_figures/panel_plot_0.0_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
+        plt.savefig('../Figures/panel_plot_0.0_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
-    if verbose=='yes':
+    if verbose:
         plt.clf()
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -649,7 +671,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             plt.title('Major')
         if run=='minor_merger':
             plt.title('Minor')
-        plt.savefig('../LDA_figures/hist_LDA_'+str(run)+'.pdf')
+        plt.savefig('../Figures/hist_LDA_'+str(run)+'.pdf')
         
         
         #Make a histogram of LDA values for merging and nonmerging SDSS
@@ -684,7 +706,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         plt.axvline(x=0.5, color='black')
         ax2.set_xlabel(r'$p_{\mathrm{merg}}$ value')
 
-        plt.savefig('../LDA_figures/hist_LDA_divided_'+str(run)+'.pdf')
+        plt.savefig('../Figures/hist_LDA_divided_'+str(run)+'.pdf')
         
         #Make a histogram of LDA values for merging and nonmerging SDSS
         #galaxies and maybe overlay the LDA values for the simulated galaxies
@@ -709,7 +731,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
             plt.title('Major')
         if run=='minor_merger':
             plt.title('Minor')
-        plt.savefig('../LDA_figures/hist_LDA_divided_p_'+str(run)+'.pdf')
+        plt.savefig('../Figures/hist_LDA_divided_p_'+str(run)+'.pdf')
 
     print('~~~~~~~Analysis Results~~~~~~')
 
@@ -729,7 +751,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
     print('~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
-    if verbose=='yes':
+    if verbose:
         # Okay sort everything by which probability grouping it is in
         ps = 3
         # Get indices that are
@@ -862,7 +884,7 @@ def classify(prefix, type_gal = 'DR12_predictors_MPI', name='img'):
         ax4.set_ylabel(second_imp_nonmerg)
         ax4.set_aspect((yedgesnon[-1]-yedgesnon[0])/(xedgesnon[-1]-xedgesnon[0]))
 
-        plt.savefig('../LDA_figures/first_sec_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../Figures/first_sec_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
         
         # Okay try to make more of a density-based scatter plot for the SDSS galaxies:
