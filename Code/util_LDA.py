@@ -67,17 +67,17 @@ def run_RFR(df_merg, features_list, run, verbose):
    
     train_features  = features[train_ind]
     train_labels    = labels[train_ind]
-
-    print('training fold 0')
+    if verbose:
+        print('training fold 0')
     #make a random forest model:
     model = RandomForestRegressor(max_depth=10, random_state=42)
     model.fit(train_features, train_labels)
-
-    print('predicting...')
+    if verbose:
+        print('predicting...')
     # Predict on new data
     preds = model.predict(test_features)
     #print out the first few mass predictions to see if they make sense:
-    if verbose=='yes':
+    if verbose:
         for h in range(10):
             print(test_labels[h], preds[h])
 
@@ -87,7 +87,7 @@ def run_RFR(df_merg, features_list, run, verbose):
     std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
     indices = np.argsort(importances)[::-1]
 
-    if verbose=='yes':
+    if verbose:
         # Plot the feature importances of the forest
         plt.clf()
         plt.figure(figsize=(15,5))
@@ -108,7 +108,7 @@ def run_RFR(df_merg, features_list, run, verbose):
     random_idx = features_list.index('random')
     random_value = importances[random_idx]
     random_std = std[random_idx]
-    if verbose=='yes':
+    if verbose:
         print('random idx', random_idx)
         print('random_value', random_value)
     unin_here = []
@@ -507,7 +507,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
         else:
             new_min_index=min_index
     
-    if verbose=='yes':
+    if verbose:
         plt.clf()
         plt.axvline(x = num_comps[new_min_index], color='k')
         plt.axvline(x = num_comps[min_index], color='k')
@@ -568,9 +568,9 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     R = master[1][1]/(master[1][0]+master[1][1])
     
     FPR = master[0][1]/(master[0][1] + master[0][0])
-    
-    print('TPR', R)
-    print('FPR', FPR)
+    if verbose:
+        print('TPR', R)
+        print('FPR', FPR)
     
     # We have to figure out how many terms to include
     significant_term = []
@@ -602,8 +602,8 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     
     obs_time, LDA_all = classify_sim(df, selected_features, list_coef[new_min_index], list_inter[new_min_index][0],
                                myr, myr_non)
-    
-    print('observability timescale', obs_time)
+    if verbose:
+        print('observability timescale', obs_time)
     
     sns.set_style("darkgrid")
     
