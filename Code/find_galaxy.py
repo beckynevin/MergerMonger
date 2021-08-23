@@ -11,11 +11,16 @@ Requires: the LDA_out_* tables that have probability values and the SDSS_predict
 import pandas as pd
 import numpy as np
 from astropy.nddata import Cutout2D
+from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.wcs import WCS
 from astropy import coordinates as coords
 import astropy.io.fits as fits
 import os
+import matplotlib
+import matplotlib.pyplot as plt
+import scipy
+import scipy.stats
 
 def SDSS_objid_to_values(objid):
 
@@ -36,7 +41,7 @@ def SDSS_objid_to_values(objid):
 
     return skyVersion, rerun, run, camcol, field, object_num
 
-def download_galaxy(ID, RA, DEC, prefix_frames):
+def download_galaxy(ID, RA, DEC, size, prefix_frames):
     decode=SDSS_objid_to_values(ID)
     if decode[2] < 1000:
         pref_run = '000'
@@ -51,35 +56,71 @@ def download_galaxy(ID, RA, DEC, prefix_frames):
     name = prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits'
 
 
-    os.system('wget https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+    os.system('wget -O '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'\
+-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2 https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
 
-    print('this is the wget')
-    print('wget https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[\
-3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
-
-    os.system('bunzip2 frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+    os.system('bunzip2 '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
 
     im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
 
-    obj_coords = SkyCoord(str(ra)+' '+str(dec),unit=(u.deg, u.deg), frame='icrs')
-
-    size = u.Quantity((80,80), u.arcsec)#was 80,80                                             
+    #obj_coords = SkyCoord(str(ra)+' '+str(dec),unit=(u.deg, u.deg), frame='icrs')
+    obj_coords = SkyCoord(ra, dec, frame='icrs', unit='deg')
+    size = u.Quantity((size, size), u.arcsec)#was 80,80                                             
     wcs_a = WCS(im[0].header)
 
     stamp_a = Cutout2D(im[0].data, obj_coords, size, wcs=wcs_a)#was image_a[0].data    
-
+    
     camera_data=(np.fliplr(np.rot90(stamp_a.data))/0.005)
 
     im.close()
 
     return camera_data
 
+# This is code from compare_mpmerg_to_full_population_CDF.py
+def calculate_cdf(p_vals, p_list, percent):
+    # Define a histogram with spacing defined                                                                                                                
+    spacing = 1000 # this will be the histogram binning but also how finely sampled the CDF is                                                               
+    hist = np.histogram(p_vals, bins=spacing)
+
+    # Put this in continuous distribution form in order to calculate the CDF                                                                                 
+    hist_dist = scipy.stats.rv_histogram(hist)
+
+    # Find individual cdf values corresponding to a p_merg value                                                                                             
+    cdf_list = []
+    for p in p_list:
+        cdf_list.append(hist_dist.cdf(p))
+        
+
+    # Define the xs of this distribution                                                                                                                     
+    X = np.linspace(0, 1.0, spacing)
+
+    # Get all cdf values                                                                                                                                     
+    cdf_val = [hist_dist.cdf(x) for x in X]
+    # Find the x point at which the cdf value is 10% and 90% - 0.1 and 0.9 (can replace this with your own thresholds)                                       
+    idx_non, val_non = find_nearest(np.array(cdf_val), percent)
+    X_non = X[idx_non]
+
+    idx_merg, val_merg = find_nearest(np.array(cdf_val), 1 - percent)
+    X_merg =X[idx_merg]
+
+    print('p_merg value is ', X_non, 'when ',val_non,' of the full population has a lower p_merg value')
+    print('p_merg value is ', X_merg, 'when ',1-val_merg,' of the full population has a higher p_merg value')
+
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx, array[idx]
+
+
+
 
 # Step 1: import the SDSS galaxies
 
 type_gal = 'predictors'
 merger_type = 'major_merger'
-plot = 'False'
+plot = True
+size = 40
  
 prefix = '/Users/beckynevin/CfA_Code/MergerMonger/Tables/'
 
@@ -98,47 +139,99 @@ df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str
 #print(df_LDA.columns, df_predictors.columns)
 
 # Step 3: match from the list of IDs:
-ID_list = [1237646379932320786,
-		1237663783674314797,
-		1237664668971958306,
-		1237661387070308495,
-		1237655742409539752,
-		1237665429176713295,
-		1237659153148608547]
+ID_list = [1237661125071208589, 1237654654171938965, 1237651212287475940, 1237659325489742089, 1237651273490628809, 1237661852007596057, 1237657878077702182, 1237667912748957839, 1237662665888956491, 1237655504567926924, 0, 1237664673793245248, 1237653009194090657, 1237667212116492386, 1237660024524046409, 1237654949448646674, 1237656496169943280, 1237663784217804830, 1237673706113925406, 1237656567042539991, 1237653587947815102, 1237651191354687536, 1237661387069194275, 1237651226784760247, 1237658204508258428, 1237661957225119836, 1237653589018018166, 1237651251482525781, 1237658802034573341, 1237663457241268416, 1237663529718841406, 1237651272956641566, 1237667910601932987, 1237659326029365299, 1237661852538437650, 1237665549422952539, 1237659327099896118, 1237651212287672564, 1237666299480309878, 1237657856607649901, 1237654952670789707, 1237654949448450067, 1237660241386143913, 1237652899700998392, 1237664837002395706, 1237654626785821087, 1237654391639638190]
 
-RA_list = [197.614455635, 197.614455635]
-#[02:06:15.990000, 02:06:15.990000]
+RA_list = [118.074345115, 119.617127519, 258.548475763, 241.150984777, 114.096383278, 189.213252539, 120.087417603, 205.690424787, 246.255977023, 251.335933471, 331.12290045, 205.753337262, 316.841308073, 127.170800449, 46.2941968423, 234.541843983, 319.193098655, 46.6649126989, 111.733682055, 322.213310988, 127.178093813, 123.820325773, 217.629970676, 262.399282723, 173.537567139, 215.017906947, 119.486337418, 123.330544326, 171.400653635, 321.00791167, 118.184152672, 119.182151794, 206.627529147, 247.159333462, 169.513447059, 206.007949798, 241.271446954, 258.82741019, 46.7170694138, 171.657261919, 255.029869751, 233.968342684, 47.1429889739, 61.4532623945, 131.725410562, 114.695391123, 118.855393765]
 
-dec_list = [18.438168849,18.438168849]
-#[-00:17:29.20000, -00:17:29.20000]
+dec_list = [19.5950803976, 37.7866245591, 57.9760977732, 43.8797876113, 39.4382798053, 45.6511702678, 26.613527298, 24.5900537916, 24.2631556488, 42.757790046, 12.4426263785, 36.1656555546, 11.0664208661, 17.5814003238, -1.07547036487, 57.6036530229, 11.0437407875, 0.0619768826479, 41.0266910782, -1.07011823351, 45.7425550277, 46.0752533433, 52.7071590288, 54.4944236725, 49.2545623779, 47.1213302326, 39.9933651629, 46.1471565611, 54.3825744827, -0.366323610281, 45.949276388, 44.8567085266, 22.7060191923, 39.551266027, 45.1130288476, 25.9411986626, 45.4429921738, 57.6587701679, -0.896544995426, 51.5730412626, 37.8395021377, 57.9026365222, 0.55093690996, -6.32383706666, 25.3700887716, 29.8912832677, 39.1860944299]
+
+
+
+index_save_LDA = []
+index_save_predictors = []
+cdf_list = []
+
+# get all p_values from the sample:
+p_vals = df_LDA['p_merg'].values
+spacing = 1000 # this will be the histogram binning but also how finely sampled the CDF is                                                     
+hist = np.histogram(p_vals, bins=spacing)
+# Put this in continuous distribution form in order to calculate the CDF                                                                            \
+hist_dist = scipy.stats.rv_histogram(hist)
+
+# Define the xs of this distribution                                                                                                                     
+X = np.linspace(0, 1.0, spacing)
+
+# Get all cdf values                                                                                                                                     
+cdf_val = [hist_dist.cdf(x) for x in X]
+
+idx_non, val_non = find_nearest(np.array(cdf_val), 0.05)
+X_non = X[idx_non]
+
+idx_merg, val_merg = find_nearest(np.array(cdf_val),0.95)
+X_merg =X[idx_merg]
+
+print('p_merg value is ', X_non, 'when ',val_non,' of the full population has a lower p_merg value')
+print('p_merg value is ', X_merg, 'when ',1-val_merg,' of the full population has a higher p_merg value')
+
+
+
 
 for i in range(len(ID_list)):
-	id = ID_list[i]
+    id = ID_list[i]
+    ra = RA_list[i]
+    dec = dec_list[i]
+    # Find each item in each data frame:
+    where_LDA = np.where(df_LDA['ID'].values==id)[0]
+    
+    # get the corresponding cdf value:
+    cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][3])
+    cdf_list.append(cdf)
 
+    if where_LDA.size != 0:
+
+        where_predictors = np.where(df_predictors['ID'].values==id)[0]
+        
+        # so IF it exists, then go ahead and download it:
+        
+
+        img = download_galaxy(id, ra, dec, size, prefix+'../Figures/ind_galaxies_classify/')
+        
+        shape = np.shape(img)[0]
+
+        if plot:
+            plt.clf()
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.imshow(abs(img), norm=matplotlib.colors.LogNorm())
+            ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+'\nCDF = '+str(round(cdf,4)), xy=(0.03, 0.9),  xycoords='axes fraction',
+            xytext=(0.03, 0.9), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
+            ax.set_title('ObjID = '+str(id))
+            ax.set_xticks([0, (shape - 1)/2, shape-1])
+            ax.set_xticklabels([-size/2, 0, size/2])
+            ax.set_yticks([0, (shape- 1)/2,shape-1])
+            ax.set_yticklabels([-size/2, 0,size/2])
+            ax.set_xlabel('Arcsec')
+            plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+str(id)+'.png', dpi=1000)
+
+        index_save_LDA.append(where_LDA)
+        index_save_predictors.append(where_predictors)
+
+
+
+print('length of input table', len(ID_list), 'length that we found in the table', len(where_LDA), 'length found in predictors', len(where_predictors))        
+print(df_LDA.values[index_save_LDA])
+print(df_predictors.values[index_save_predictors])
+STOP        
+        
 	
-	# Find each item in each data frame:
-	where_LDA = np.where(df_LDA['MaNGA_ID'].values==id)[0]
-	if where_LDA.size != 0:
-		print(df_LDA.values[where_LDA])
-
-		where_predictors = np.where(df_predictors['ID'].values==id)[0]
-		print(df_predictors.values[where_predictors])
-
-
-		print('where 1', where_LDA, 'where 2', where_predictors)
-
-		# It would be quite cool if there was an option to download the frame image
-                '''
-		if plot:
-			ra = RA_list[i]
-			dec = dec_list[i]
-			
-			download_galaxy(id, ra, dec, prefix+'imaging/')
-                '''
-	else:
-		continue
 		
-	
+'''
+if plot:
+    ra = RA_list[i]
+    dec = dec_list[i]
+    
+    download_galaxy(id, ra, dec, prefix+'imaging/')'''
 
 STOP
 
