@@ -130,11 +130,7 @@ def load_LDA_from_simulation(run, type_gal = 'predictors', name='img',
     inter = output_LDA[4]
     LDA_ID = output_LDA[8]
 
-    print('means', std_mean)
-    print('stds', std_std)
-    print('inputs', inputs_all)
-    print('coefficients', coeff)
-    print('intercept', inter)
+    
 
     
     if plot==True:
@@ -261,7 +257,9 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
     
     #df2.columns = ['ID','Sep','Flux Ratio',
     #  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
-      
+    
+    df2 = df2[0:10]
+    
     if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
         df2 = df2.iloc[: , 1:]
 
@@ -300,6 +298,19 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
 
     # make it way shorter
     #df2 = df2[50000:57000]
+    
+    '''std_mean = output_LDA[0]
+    std_std = output_LDA[1]
+    inputs_all = output_LDA[2]
+
+
+
+    coeff = output_LDA[3]
+    inter = output_LDA[4]
+    LDA_ID = output_LDA[8]'''
+
+    print(df2)
+    print(LDA[2])
 
     input_singular = []
     crossterms = []
@@ -316,6 +327,8 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
             input_singular.append(LDA[2][j])
             
     inputs = input_singular + crossterms
+    
+    print('inputs', inputs)
     
     '''
     input_singular = terms_RFR
@@ -377,7 +390,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
 
     # Make a table with merger probabilities and other diagnostics:
     print('making table of LDA output for all galaxies.....')
-    file_out = open(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
+    file_out = open(prefix+'LDA_out_all_SDSS_TS_'+str(type_gal)+'_'+str(run)+'.txt','w')
     file_out.write('ID'+'\t'+
     'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
     #+'Second_term'+'\t'+'Second_coef'+'\n')
@@ -392,6 +405,18 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
 
     p_merg_merg_SDSS = []
     p_merg_nonmerg_SDSS = []
+    
+    '''
+    std_mean = output_LDA[0]
+    std_std = output_LDA[1]
+    inputs_all = output_LDA[2]
+
+
+
+    coeff = output_LDA[3]
+    inter = output_LDA[4]
+    LDA_ID = output_LDA[8]
+    '''
 
     for j in range(len(X_gal)):
         #print(X_gal[j])
@@ -410,6 +435,15 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         
         p_merg = 1/(1 + np.exp(-LD1_gal))
         p_nonmerg = 1/(1 + np.exp(LD1_gal))
+        
+        print('ID', str(df2[['ID']].values[j][0]))
+        print('Xs', X_gal[j])
+        print('standardized Xs', X_standardized)
+        print('LDA1', LD1_gal)
+        print('p_merg', p_merg)
+        
+        STOP
+        
         if LD1_gal > 0:
             merg = 1
             # select the thing that is the most positive
