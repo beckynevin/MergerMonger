@@ -1,17 +1,16 @@
 '''
 ~~~
-Iteratively run MergerMonger on the full SDSS sample to make the figure: 'adjusting_prior_all.png'
-The goal is to be able to adjust the prior without adjusting the alphas to determine how much the choice of input priors affects the measured merger fraction.
+The wrapper for creating the LDA_out tables for the fully SDSS dataset
 ~~~
 '''
-from MergerMonger import load_LDA_from_simulation
+from MergerMonger import load_LDA_from_simulation, classify
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import pandas as pd
 from util_LDA import cross_term
 
-run = 'major_merger'
+run = 'minor_merger'
 LDA = load_LDA_from_simulation(run)
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 print(LDA)
@@ -35,20 +34,6 @@ print('intercept', LDA[4])
 
 print('len intercept', len(LDA[4]))
 
-input_singular = []
-crossterms = []
-ct_1 = []
-ct_2 = []
-for j in range(len(LDA[2])):
-    if '*' in LDA[2][j]:
-        crossterms.append(LDA[2][j])
-        split = str.split(LDA[2][j],'*')
-        ct_1.append(split[0])
-        ct_2.append(split[1])
-        
-    else:
-        input_singular.append(LDA[2][j])
-        
 
 
 
@@ -69,5 +54,5 @@ type_gal = 'predictors'
 verbose='yes'
 
 
-classify(prefix,type_gal)
+classify('../Tables/',type_gal, run, LDA)
     
