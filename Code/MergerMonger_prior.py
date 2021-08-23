@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from util_LDA import cross_term
 
-run = 'major_merger'
+run = 'minor_merger'
 LDA = load_LDA_from_simulation(run)
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 print(LDA)
@@ -139,7 +139,7 @@ for i in range(np.shape(prior_list)[0]):
     df2.columns = ['ID','Sep','Flux Ratio',
       'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
     
-    df2 = df2[0:1000]
+    #df2 = df2[0:1000]
     #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
     
     
