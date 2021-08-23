@@ -9,9 +9,13 @@ import math
 import matplotlib.pyplot as plt
 import pandas as pd
 from util_LDA import cross_term
+import os
 
 run = 'major_merger'
-LDA = load_LDA_from_simulation(run, verbose=False)
+
+print(str(os.getcwd())+'../frames/')
+
+LDA = load_LDA_from_simulation(run,str(os.getcwd())+'../frames/', type_gal = 'predictors',name='img',verbose=False)
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 print(LDA)
 # The output of this is in the format:

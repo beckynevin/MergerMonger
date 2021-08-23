@@ -38,8 +38,8 @@ def locate_min(a):
     return smallest, [index for index, element in enumerate(a)
                   if smallest == element]
 
-def load_LDA_from_simulation(run, type_gal = 'predictors', name='img',
-    prefix_frames = '/Users/beckynevin/CfA_Code/Kinematics_and_Imaging_Merger_Identification/imaging/',verbose=True, plot=True):
+def load_LDA_from_simulation(run, prefix_frames, type_gal = 'predictors', name='img',
+    verbose=True, plot=True):
 
 
     feature_dict = {i:label for i,label in zip(
