@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from util_LDA import cross_term
 
-run = 'minor_merger'
-LDA = load_LDA_from_simulation(run)
+run = 'major_merger'
+LDA = load_LDA_from_simulation(run, verbose=False)
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 print(LDA)
 # The output of this is in the format:
