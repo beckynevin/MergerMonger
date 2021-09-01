@@ -24,7 +24,7 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from scipy.signal import argrelextrema
-from util_LDA import run_LDA, run_RFR, cross_term
+from util_LDA import run_LDA, run_RFR, run_RFC, cross_term
 import scipy
 from util_SDSS import plot_individual, download_sdss_ra_dec_table, download_galaxy
 
@@ -113,12 +113,16 @@ def load_LDA_from_simulation(run, prefix_frames, type_gal = 'predictors', name='
         else:
             myr.append(df[['Myr']].values[j][0])
 
+    len_nonmerg = len(myr_non)
+    len_merg = len(myr)
+
     myr_non=sorted(list(set(myr_non)))
     myr=sorted(list(set(myr)))
     
     terms_RFR, reject_terms_RFR = run_RFR(df, features_list, run, verbose)
     output_LDA = run_LDA(run, df, priors,terms_RFR, myr, myr_non, 21,  verbose)
    
+    
 
     std_mean = output_LDA[0]
     std_std = output_LDA[1]
@@ -242,9 +246,15 @@ def load_LDA_from_simulation(run, prefix_frames, type_gal = 'predictors', name='
         nonmerg_m20=np.array(nonmerg_m20)
         nonmerg_gini=np.array(nonmerg_gini)
 
-    return output_LDA
+    
 
-def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
+    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg
+
+
+# Taking the output of the LDA (trained on simulated examples),
+# this code runs the classification on the full SDSS dataset
+
+def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=False):
     #~~~~~~~
     # Now bring in the SDSS galaxies!
     #~~~~~~~
@@ -253,34 +263,13 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
     #prefix = '/Users/beckynevin/CfA_Code/Cannon/parallel_SDSS/'
     df2 = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all.txt', sep='\t')
     
-    
-    
-    #df2.columns = ['ID','Sep','Flux Ratio',
-    #  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
-    
-    df2 = df2[0:10]
+
+    #df2 = df2[0:10000]
     
     if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
         df2 = df2.iloc[: , 1:]
 
-    #df2.columns = [l for i,l in sorted(feature_dict2.items())]
-    '''
-    ID      Sep     Flux_ratio      Gini    M20     C       A       S       Sersic n        A_s     inc     S/N     Sersic n statmorph      A_s_stat
-    '''
-
-    #was originally all_sdss.txt but then I realized I had a bunch of negative A values which were no good
-
-    # Filter out the bad parameter values - high n values:
-    '''
-    df_bad = df2[df2['Sersic N'] > 10]
-    pd.set_option('display.max_columns', 20)
-    print('bad sersic', df_bad)
-
-    df_bad = df2[df2['Asymmetry (A)'] <-1]
-    print('bad A', len(df_bad))
-    print(df_bad)
-
-    '''
+    
 
     # First, delete all rows that have weird values of n:
     print('len before crazy values', len(df2))
@@ -296,41 +285,9 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
     df2 = df2[~df2_nodup]
     print('len af duplicate delete', len(df2))
 
-    # make it way shorter
-    #df2 = df2[50000:57000]
+
+
     
-    '''std_mean = output_LDA[0]
-    std_std = output_LDA[1]
-    inputs_all = output_LDA[2]
-
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
-    LDA_ID = output_LDA[8]'''
-
-    print(df2)
-    print(LDA[2])
-
-    input_singular = []
-    crossterms = []
-    ct_1 = []
-    ct_2 = []
-    for j in range(len(LDA[2])):
-        if '*' in LDA[2][j]:
-            crossterms.append(LDA[2][j])
-            split = str.split(LDA[2][j],'*')
-            ct_1.append(split[0])
-            ct_2.append(split[1])
-            
-        else:
-            input_singular.append(LDA[2][j])
-            
-    inputs = input_singular + crossterms
-    
-    print('inputs', inputs)
-    
-    '''
     input_singular = terms_RFR
     #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
     crossterms = []
@@ -346,14 +303,14 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
             ct_2.append(input_singular[i])
 
     inputs = input_singular + crossterms
-    '''
+
     # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
     for j in range(len(crossterms)):
         
         df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
         
 
-    X_gal = df2[inputs].values
+    X_gal = df2[LDA[2]].values
 
 
 
@@ -390,7 +347,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
 
     # Make a table with merger probabilities and other diagnostics:
     print('making table of LDA output for all galaxies.....')
-    file_out = open(prefix+'LDA_out_all_SDSS_TS_'+str(type_gal)+'_'+str(run)+'.txt','w')
+    file_out = open(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
     file_out.write('ID'+'\t'+
     'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
     #+'Second_term'+'\t'+'Second_coef'+'\n')
@@ -436,13 +393,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         p_merg = 1/(1 + np.exp(-LD1_gal))
         p_nonmerg = 1/(1 + np.exp(LD1_gal))
         
-        print('ID', str(df2[['ID']].values[j][0]))
-        print('Xs', X_gal[j])
-        print('standardized Xs', X_standardized)
-        print('LDA1', LD1_gal)
-        print('p_merg', p_merg)
-        
-        STOP
+
         
         if LD1_gal > 0:
             merg = 1
@@ -482,6 +433,12 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
 
     file_out.close()
     print('finished writing out LDA file')
+
+
+
+
+
+
 
 
 
@@ -566,13 +523,17 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
     sim_nonmerg_pred_2 = []
     sim_merg_pred_2 = []
 
+
+    # Will need the actual table values for the simulated galaxies to run this part
+    
+
     for j in range(len(df)):
-        if LDA_ID[j]<0:#then its a nonmerger
+        if LDA[8][j]<0:#then its a nonmerger
             sim_nonmerg_pred_1.append(df[first_imp_nonmerg].values[j])
             sim_nonmerg_pred_2.append(df[second_imp_nonmerg].values[j])
             
             
-        if LDA_ID[j]>0:#then its a nonmerger
+        if LDA[8][j]>0:#then its a nonmerger
             sim_merg_pred_1.append(df[first_imp_merg].values[j])
             sim_merg_pred_2.append(df[second_imp_merg].values[j])
 
@@ -690,26 +651,116 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         plt.savefig('../Figures/panel_plot_0.0_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
     if verbose:
-        plt.clf()
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        '''_, bins, _ = ax.hist(X_lda_1, label='Nonmerger',  color=str(blue), alpha=0.75,normed=1, bins=50,range=[-12, 8])
-        _ = ax.hist(X_lda_2, label='Merger',  color=str(col),alpha = 0.75,normed=1, bins=bins)#sns.xkcd_rgb["salmon"]      '''
 
-        _, bins, _ = ax.hist(LDA_ID, label='Simulation LD1', color='#FE4E00', bins=50, range = [-12,12])
+        # First get the LDA values for the knwon and unknown mergers and nonmergers:
+        '''
+        LDA_ID_merg = []
+        LDA_ID_nonmerg = []
 
-        _ = ax.hist(LD1_SDSS, label='SDSS LD1',alpha=0.75, color='#33658A',  bins=bins)
-        plt.axvline(x=0, color='black')
-        plt.legend()
-        if run=='major_merger':
-            plt.title('Major')
-        if run=='minor_merger':
-            plt.title('Minor')
-        plt.savefig('../Figures/hist_LDA_'+str(run)+'.pdf')
+        nonmerg_p = []
+        merg_p = []
+        for j in range(len(df)):
+            p_merg_sim = 1/(1 + np.exp(-LDA[8][j]))
+            if df['class label'].values[j]==0:
+                LDA_ID_nonmerg.append(LDA[8][j])
+            if df['class label'].values[j]==1:
+                LDA_ID_merg.append(LDA[8][j])
+            if LDA[8][j]<0:          
+                nonmerg_p.append(p_merg_sim)
+            else:
+                merg_p.append(p_merg_sim)
+        '''    
+        nonmerg_gini=[]
+        nonmerg_m20=[]
+
+        merg_gini=[]
+        merg_m20=[]
+
+        nonmerg_gini_LDA=[]
+        nonmerg_m20_LDA=[]
+
+        merg_gini_LDA=[]
+        merg_m20_LDA=[]
+
+
+        nonmerg_C_LDA=[]
+        nonmerg_A_LDA=[]
+        nonmerg_S_LDA=[]
+        nonmerg_n_LDA=[]
+        nonmerg_A_S_LDA=[]
+
+        merg_C_LDA=[]
+        merg_A_LDA=[]
+        merg_S_LDA=[]
+        merg_n_LDA=[]
+        merg_A_S_LDA=[]
+
+        LDA_ID_merg = []
+        LDA_ID_nonmerg = []
+
+        indices_nonmerg = []
+        indices_merg = []
+
+        merg_p = []
+        nonmerg_p = []
+
+        for j in range(len(df)):
+            if df['class label'].values[j]==0:
+                nonmerg_gini.append(df['Gini'].values[j])
+                nonmerg_m20.append(df['M20'].values[j])
+                LDA_ID_nonmerg.append(LDA[8][j])
+                indices_nonmerg.append(j)
+            if df['class label'].values[j]==1:
+                merg_gini.append(df['Gini'].values[j])
+                merg_m20.append(df['M20'].values[j])
+                LDA_ID_merg.append(LDA[8][j])
+                indices_merg.append(j)
+
+
+            p_merg_sim = 1/(1 + np.exp(-LDA[8][j]))
+            if LDA[8][j]<0:#then its a nonmerger                                                                                           
+                nonmerg_gini_LDA.append(df['Gini'].values[j])
+                nonmerg_m20_LDA.append(df['M20'].values[j])
+                nonmerg_C_LDA.append(df['Concentration (C)'].values[j])
+                nonmerg_A_LDA.append(df['Asymmetry (A)'].values[j])
+                nonmerg_S_LDA.append(df['Clumpiness (S)'].values[j])
+                nonmerg_n_LDA.append(df['Sersic N'].values[j])
+                nonmerg_A_S_LDA.append(df['Shape Asymmetry (A_S)'].values[j])
+                nonmerg_p.append(p_merg_sim)
+
+            if LDA[8][j]>0:#then its a nonmerger                                                                                           
+                merg_gini_LDA.append(df['Gini'].values[j])
+                merg_m20_LDA.append(df['M20'].values[j])
+                merg_C_LDA.append(df['Concentration (C)'].values[j])
+                merg_A_LDA.append(df['Asymmetry (A)'].values[j])
+                merg_S_LDA.append(df['Clumpiness (S)'].values[j])
+                merg_n_LDA.append(df['Sersic N'].values[j])
+                merg_A_S_LDA.append(df['Shape Asymmetry (A_S)'].values[j])
+                merg_p.append(p_merg_sim)
+
+
+
+        merg_m20_LDA=np.array(merg_m20_LDA)
+        merg_gini_LDA=np.array(merg_gini_LDA)
+        merg_C_LDA=np.array(merg_C_LDA)
+        merg_A_LDA=np.array(merg_A_LDA)
+        merg_S_LDA=np.array(merg_S_LDA)
+        merg_n_LDA=np.array(merg_n_LDA)
+        merg_A_S_LDA=np.array(merg_A_S_LDA)
+
+        merg_m20=np.array(merg_m20)
+        merg_gini=np.array(merg_gini)
+        nonmerg_m20=np.array(nonmerg_m20)
+        nonmerg_gini=np.array(nonmerg_gini)
+
+
+
         
         
         #Make a histogram of LDA values for merging and nonmerging SDSS
         #galaxies and maybe overlay the LDA values for the simulated galaxies
+        hist, bins = np.histogram(LDA[8], bins=50)
+        
         plt.clf()
         fig = plt.figure()
         ax = fig.add_subplot(312)
@@ -735,13 +786,18 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
 
 
         ax2 = fig.add_subplot(313)
-        _ = ax2.hist(p_merg_merg_SDSS, label='SDSS mergers',alpha=0.75, color='#EA9010',  bins=bins)
-        _ = ax2.hist(p_merg_nonmerg_SDSS, label='SDSS nonmergers',alpha=0.75, color='#90BE6D',  bins=bins)
+        _ = ax2.hist(p_merg_merg_SDSS, label='SDSS mergers',alpha=0.75, color='#EA9010',  bins=50, range=[0,1])
+        a, b, c = ax2.hist(p_merg_nonmerg_SDSS, label='SDSS nonmergers',alpha=0.75, color='#90BE6D',  bins=50, range=[0,1])
+        
+        print(a)
         plt.axvline(x=0.5, color='black')
+        ax2.set_ylim([0,(len(p_merg_merg_SDSS)+len(p_merg_nonmerg_SDSS))/5])
+        ax2.annotate('^'+str(int(np.max(a))), xy=(0.07,0.89), xycoords='axes fraction')
         ax2.set_xlabel(r'$p_{\mathrm{merg}}$ value')
 
         plt.savefig('../Figures/hist_LDA_divided_'+str(run)+'.pdf')
-        
+
+
         #Make a histogram of LDA values for merging and nonmerging SDSS
         #galaxies and maybe overlay the LDA values for the simulated galaxies
         plt.clf()
@@ -766,11 +822,10 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         if run=='minor_merger':
             plt.title('Minor')
         plt.savefig('../Figures/hist_LDA_divided_p_'+str(run)+'.pdf')
-
+        
     print('~~~~~~~Analysis Results~~~~~~')
 
-    print('LDA terms', output_LDA[2])
-    print('LDA coeff', output_LDA[3])
+
 
     print('percent nonmerg',len(nonmerg_name_list)/(len(nonmerg_name_list)+len(merg_name_list)))
     print('percent merg',len(merg_name_list)/(len(nonmerg_name_list)+len(merg_name_list)))
@@ -778,7 +833,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
     print('# nonmerg',len(nonmerg_name_list))
     print('# merg',len(merg_name_list))
 
-    print('priors', priors)
+
 
 
 
@@ -1203,6 +1258,11 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         plt.savefig('../LDA_figures/n_A_S_density_'+str(run)+'.pdf',  bbox_inches = 'tight')
         '''
         
+        dashed_line_x=np.linspace(-0.5,-3,100)
+        dashed_line_y=[-0.14*x + 0.33 for x in dashed_line_x]
+
+
+
         # Makes density of the simulated galaxies separately from the SDSS galaxies
         plt.clf()
         sns.set_style('dark')
@@ -1296,7 +1356,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         ax4.set_ylabel(r'$Gini$')
         ax4.set_aspect((ymax-ymin)/(xmax-xmin))
 
-        plt.savefig('../LDA_figures/gini_m20_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../Figures/gini_m20_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
         
         
@@ -1387,7 +1447,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         ax3.axvline(x=0.35, ls='--', color='black')
         ax4.axvline(x=0.35, ls='--', color='black')
 
-        plt.savefig('../LDA_figures/C_A_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../Figures/C_A_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
         
         #~~~~~~~~~~~~~~~~~ Now, make this for n-A_S ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1477,7 +1537,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         ax3.axvline(x=0.2, ls='--', color='black')
         ax4.axvline(x=0.2, ls='--', color='black')
 
-        plt.savefig('../LDA_figures/n_A_S_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
+        plt.savefig('../Figures/n_A_S_separate_'+str(run)+'.pdf',  bbox_inches = 'tight')
         
 
 
@@ -1558,7 +1618,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         plt.axis('off')
      #   plt.colorbar()
         plt.tight_layout()
-        plt.savefig('../LDA_figures/ind_gals/SDSS_'+str(type_gal)+'_'+str(run)+'_'+str(gal_id)+'.pdf')
+        plt.savefig('../Figures/ind_gals/SDSS_'+str(type_gal)+'_'+str(run)+'_'+str(gal_id)+'.pdf')
         if p > 40:
             break
         
@@ -1601,7 +1661,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         counter+=1
 
     plt.tight_layout()
-    plt.savefig('../LDA_figures/panel_plot_mergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
+    plt.savefig('../Figures/panel_plot_mergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
 
     # nonmergers
@@ -1643,7 +1703,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
         counter+=1
 
     plt.tight_layout()
-    plt.savefig('../LDA_figures/panel_plot_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
+    plt.savefig('../Figures/panel_plot_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
         
     # I think it'll be cool to plot a panel with probability of being a merger on one axis and examples of multiple
@@ -1717,7 +1777,7 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
             counter_i+=1
             
 
-    plt.savefig('../LDA_figures/probability_panel_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
+    plt.savefig('../Figures/probability_panel_nonmergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
     plt.clf()
     fig, axs = plt.subplots(2,5, figsize=(15, 7), facecolor='w', edgecolor='k')
@@ -1775,9 +1835,9 @@ def classify(prefix, type_gal, run, LDA, name='img', verbose=False):
             counter_i+=1
             
 
-    plt.savefig('../LDA_figures/probability_panel_mergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
+    plt.savefig('../Figures/probability_panel_mergers_SDSS_'+str(type_gal)+'_'+str(run)+'.pdf')
 
-
+    return LD1_SDSS, p_merg_list
 
 
 

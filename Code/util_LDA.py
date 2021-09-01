@@ -125,6 +125,85 @@ def run_RFR(df_merg, features_list, run, verbose):
     return important_here, unin_here
 
 
+def run_RFC(df_merg, features_list, run, verbose):
+    # These are adjustable RFR parameters                                                                             
+    Nfolds = 10
+    Ndat = 5000
+
+    features = df_merg[features_list].values
+    #,'nspax','re'                                                                                                    
+    Nfeatures = len(features[0])
+
+    #dat['features']#.reshape(-1,1)                                                                                   
+    labels = df_merg[['class label']].values
+    folds = np.arange(len(labels))%Nfolds
+
+
+    #Test on fold 0, train on the remaining folds:                                                                    
+    test_ind, train_ind = testAndTrainIndices(test_fold = 0, Nfolds = Nfolds, folds=folds)
+
+    #divide features and labels into test and train sets:                                                             
+    test_features = features[test_ind]
+    test_labels   = labels[test_ind]
+
+    train_features  = features[train_ind]
+    train_labels    = labels[train_ind]
+    if verbose:
+        print('training fold 0')
+    #make a random forest model:                                                                                      
+    model = RandomForestClassifier(max_depth=10, random_state=42)
+    model.fit(train_features, train_labels)
+    if verbose:
+        print('predicting...')
+    # Predict on new data                                                                                             
+    preds = model.predict(test_features)
+    #print out the first few mass predictions to see if they make sense:                                              
+    if verbose:
+        for h in range(10):
+            print(test_labels[h], preds[h])
+
+
+    # rank feature importance:                                                                                        
+    importances = model.feature_importances_
+    std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
+    indices = np.argsort(importances)[::-1]
+
+    if verbose:
+        # Plot the feature importances of the forest                                                                  
+        plt.clf()
+        plt.figure(figsize=(15,5))
+        plt.title("RFR Feature importances for "+str(run))
+        plt.bar(range(Nfeatures), importances[indices], yerr=std[indices], align="center", color='pink')
+        plt.xticks(range(Nfeatures), indices)
+        plt.xlim([-1, Nfeatures])
+        plt.show()
+
+        #plt.savefig('feature_importance_'+str(run)+'_rando.pdf')                                                     
+
+        print('Run ', run)
+        print('Importance in Order ~~~~')
+
+    # find the index of the random one:                                                                               
+    random_idx = features_list.index('random')
+    random_value = importances[random_idx]
+    random_std = std[random_idx]
+    if verbose:
+        print('random idx', random_idx)
+        print('random_value', random_value)
+    unin_here = []
+    important_here = []
+    for j in range(len(indices)):
+        #if importances[indices[j]] - std[indices[j]] > 0:                                                            
+        print(indices[j], features_list[indices[j]])
+        if importances[indices[j]] > random_value:# or importances[indices[j]] - std[indices[j]] > random_value - random_std:                                                                                                              
+            important_here.append(features_list[indices[j]])
+        else:
+            unin_here.append(features_list[indices[j]])
+
+
+    return important_here, unin_here
+
+
 def cross_term(row, t1, t2):
     return row[t1]*row[t2]
 

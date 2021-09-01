@@ -10,11 +10,15 @@ import math
 import matplotlib.pyplot as plt
 import pandas as pd
 from util_LDA import cross_term
+import os
 
-run = 'minor_merger'
-LDA = load_LDA_from_simulation(run)
+run = 'major_merger'
+LDA, RFR, df = load_LDA_from_simulation(run, str(os.getcwd())+'../frames/',verbose=False, plot=False)
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print(LDA)
+
+nonmerg = df[df['class label']==0]
+merg = df[df['class label']==1]
+
 # The output of this is in the format:
 # 0 = standardized means on all of the coefficients
 # 1 = standardized stds
@@ -76,7 +80,7 @@ for i in range(len(fmerg_prior)):
     #plt.axvline(x = 0)
     plt.axvline(x = prior_line, color=color[i])
     plt.annotate(r'$f_{\mathrm{in}}$ = '+str(fmerg_prior[i])+', $f_{\mathrm{merg}}$ = '+str(round(nmerg/len(LDA[8]),2)), xy=(-14, 55-3*i), xycoords='data', color=color[i])
-
+plt.annotate(r'$f_{\mathrm{merg, sim}}$ = '+str(len(merg)/(len(df))), xy=(-14, 58), xycoords='data')
 plt.savefig('../Figures/adjusting_prior_simulation.png', dpi=1000)
 
 # Find out what fraction of galaxies are above the LD1 = 0 line
@@ -85,7 +89,7 @@ plt.savefig('../Figures/adjusting_prior_simulation.png', dpi=1000)
     
     
 
-type_gal = 'DR12_predictors_MPI'
+type_gal = 'predictors'
 verbose='no'
 
 
@@ -136,12 +140,12 @@ for i in range(np.shape(prior_list)[0]):
                 'Shape Asymmetry (A_S)', 'Sersic AR'))}
 
     df2 = pd.io.parsers.read_csv('../Tables/SDSS_'+str(type_gal)+'_all.txt', sep='\t')
-    df2.columns = ['ID','Sep','Flux Ratio',
-      'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
+#    df2.columns = ['ID','Sep','Flux Ratio',      'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
     
-    #df2 = df2[0:1000]
+    df2 = df2[0:1000]
     #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
-    
+    if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
+        df2 = df2.iloc[: , 1:]
     
     '''
     # Need to fix this section

@@ -56,14 +56,14 @@ def download_galaxy(ID, RA, DEC, size, prefix_frames):
     name = prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits'
 
 
-    os.system('wget -O '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'\
--'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2 https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+    os.system('wget -O '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2 https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+
+
 
     os.system('bunzip2 '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
 
     im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
 
-    #obj_coords = SkyCoord(str(ra)+' '+str(dec),unit=(u.deg, u.deg), frame='icrs')
     obj_coords = SkyCoord(ra, dec, frame='icrs', unit='deg')
     size = u.Quantity((size, size), u.arcsec)#was 80,80                                             
     wcs_a = WCS(im[0].header)
@@ -77,6 +77,7 @@ def download_galaxy(ID, RA, DEC, size, prefix_frames):
     return camera_data
 
 # This is code from compare_mpmerg_to_full_population_CDF.py
+# But here for a list of p values
 def calculate_cdf(p_vals, p_list, percent):
     # Define a histogram with spacing defined                                                                                                                
     spacing = 1000 # this will be the histogram binning but also how finely sampled the CDF is                                                               
@@ -120,9 +121,9 @@ def find_nearest(array, value):
 type_gal = 'predictors'
 merger_type = 'major_merger'
 plot = True
-size = 40
+size = 80
  
-prefix = '/Users/beckynevin/CfA_Code/MergerMonger/Tables/'
+prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger/Tables/'
 
 df_predictors = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all.txt', sep='\t')
 
@@ -131,12 +132,15 @@ df_predictors = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all.txt', 
 if len(df_predictors.columns) ==15: #then you have to delete the first column which is an empty index
     df_predictors = df_predictors.iloc[: , 1:]
   
+# Change the type of the ID in predictors:
+df_predictors = df_predictors.astype({'ID': 'int64'})#.dtypes                                                                                     
 
 
 # Step 2: import the probability values for these galaxies
 
 df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(merger_type)+'.txt', sep='\t')
 #print(df_LDA.columns, df_predictors.columns)
+df_LDA = df_LDA.astype({'ID': 'int64'})
 
 # Step 3: match from the list of IDs:
 ID_list = [1237661125071208589, 1237654654171938965, 1237651212287475940, 1237659325489742089, 1237651273490628809, 1237661852007596057, 1237657878077702182, 1237667912748957839, 1237662665888956491, 1237655504567926924, 0, 1237664673793245248, 1237653009194090657, 1237667212116492386, 1237660024524046409, 1237654949448646674, 1237656496169943280, 1237663784217804830, 1237673706113925406, 1237656567042539991, 1237653587947815102, 1237651191354687536, 1237661387069194275, 1237651226784760247, 1237658204508258428, 1237661957225119836, 1237653589018018166, 1237651251482525781, 1237658802034573341, 1237663457241268416, 1237663529718841406, 1237651272956641566, 1237667910601932987, 1237659326029365299, 1237661852538437650, 1237665549422952539, 1237659327099896118, 1237651212287672564, 1237666299480309878, 1237657856607649901, 1237654952670789707, 1237654949448450067, 1237660241386143913, 1237652899700998392, 1237664837002395706, 1237654626785821087, 1237654391639638190]
@@ -145,7 +149,8 @@ RA_list = [118.074345115, 119.617127519, 258.548475763, 241.150984777, 114.09638
 
 dec_list = [19.5950803976, 37.7866245591, 57.9760977732, 43.8797876113, 39.4382798053, 45.6511702678, 26.613527298, 24.5900537916, 24.2631556488, 42.757790046, 12.4426263785, 36.1656555546, 11.0664208661, 17.5814003238, -1.07547036487, 57.6036530229, 11.0437407875, 0.0619768826479, 41.0266910782, -1.07011823351, 45.7425550277, 46.0752533433, 52.7071590288, 54.4944236725, 49.2545623779, 47.1213302326, 39.9933651629, 46.1471565611, 54.3825744827, -0.366323610281, 45.949276388, 44.8567085266, 22.7060191923, 39.551266027, 45.1130288476, 25.9411986626, 45.4429921738, 57.6587701679, -0.896544995426, 51.5730412626, 37.8395021377, 57.9026365222, 0.55093690996, -6.32383706666, 25.3700887716, 29.8912832677, 39.1860944299]
 
-
+# Testing if A, B, and C still exist in the catalog:
+#id_list = [1237665179521187863, 1237661069252231265, 1237665329864114245]
 
 index_save_LDA = []
 index_save_predictors = []
@@ -153,7 +158,7 @@ cdf_list = []
 
 # get all p_values from the sample:
 p_vals = df_LDA['p_merg'].values
-spacing = 1000 # this will be the histogram binning but also how finely sampled the CDF is                                                     
+spacing = 10000 # this will be the histogram binning but also how finely sampled the CDF is                                                     
 hist = np.histogram(p_vals, bins=spacing)
 # Put this in continuous distribution form in order to calculate the CDF                                                                            \
 hist_dist = scipy.stats.rv_histogram(hist)
@@ -164,47 +169,79 @@ X = np.linspace(0, 1.0, spacing)
 # Get all cdf values                                                                                                                                     
 cdf_val = [hist_dist.cdf(x) for x in X]
 
-idx_non, val_non = find_nearest(np.array(cdf_val), 0.05)
+idx_non, val_non = find_nearest(np.array(cdf_val), 0.1)
 X_non = X[idx_non]
 
-idx_merg, val_merg = find_nearest(np.array(cdf_val),0.95)
+idx_merg, val_merg = find_nearest(np.array(cdf_val),0.9)
 X_merg =X[idx_merg]
 
 print('p_merg value is ', X_non, 'when ',val_non,' of the full population has a lower p_merg value')
 print('p_merg value is ', X_merg, 'when ',1-val_merg,' of the full population has a higher p_merg value')
+
+indices_preds = df_predictors.index
 
 
 
 
 for i in range(len(ID_list)):
     id = ID_list[i]
+
+    print('trying to find a match for this', id, type(id))
     ra = RA_list[i]
     dec = dec_list[i]
     # Find each item in each data frame:
-    where_LDA = np.where(df_LDA['ID'].values==id)[0]
+
+    
+    where_LDA = np.where(np.array(df_LDA['ID'].values)==id)[0]
+    
+    #print('trying to find where preds', df_predictors.loc[df_predictors['ID']==id])
+    
+    condition = df_predictors["ID"] == id
+    try:
+        where_predictors = indices_preds[condition].values.tolist()[0]
+    except:
+        continue
+
+    print('where preds', where_predictors)
+    '''
+
+    try:
+        where_predictors = df_predictors.index(df_predictors.loc[df_predictors['ID']==id])
+    
+        print('where preds', where_predictors)
+    except TypeError:
+        continue
+        STOP
+    #np.where(df_predictors['ID'].values==id)[0]
+    '''
     
     # get the corresponding cdf value:
-    cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][3])
+    try:
+        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][3])
+    except IndexError:
+        # This means there was no match
+        continue
     cdf_list.append(cdf)
 
     if where_LDA.size != 0:
 
-        where_predictors = np.where(df_predictors['ID'].values==id)[0]
-        
         # so IF it exists, then go ahead and download it:
         
 
-        img = download_galaxy(id, ra, dec, size, prefix+'../Figures/ind_galaxies_classify/')
-        
-        shape = np.shape(img)[0]
+
 
         if plot:
+            img = download_galaxy(id, ra, dec, size, prefix+'../frames/')
+
+            shape = np.shape(img)[0]
+
+            
             plt.clf()
             fig = plt.figure()
             ax = fig.add_subplot(111)
             ax.imshow(abs(img), norm=matplotlib.colors.LogNorm())
-            ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+'\nCDF = '+str(round(cdf,4)), xy=(0.03, 0.9),  xycoords='axes fraction',
-            xytext=(0.03, 0.9), textcoords='axes fraction',
+            ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+'\nCDF = '+str(round(cdf,4)), xy=(0.03, 0.85),  xycoords='axes fraction',
+            xytext=(0.03, 0.85), textcoords='axes fraction',
             bbox=dict(boxstyle="round", fc="0.9"), color='black')
             ax.set_title('ObjID = '+str(id))
             ax.set_xticks([0, (shape - 1)/2, shape-1])
@@ -214,14 +251,42 @@ for i in range(len(ID_list)):
             ax.set_xlabel('Arcsec')
             plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+str(id)+'.png', dpi=1000)
 
-        index_save_LDA.append(where_LDA)
+        index_save_LDA.append(where_LDA[0])
         index_save_predictors.append(where_predictors)
 
+index_save_LDA = np.array(index_save_LDA)
+index_save_predictors = np.array(index_save_predictors)
+
+print(index_save_predictors)
+
+print('length of input table', len(ID_list), 'length that we found in the table', len(index_save_LDA), 'length found in predictors', len(index_save_predictors))        
 
 
-print('length of input table', len(ID_list), 'length that we found in the table', len(where_LDA), 'length found in predictors', len(where_predictors))        
-print(df_LDA.values[index_save_LDA])
-print(df_predictors.values[index_save_predictors])
+df_LDA_save = pd.DataFrame(df_LDA.values[index_save_LDA], columns = df_LDA.columns)
+df_predictors_save = pd.DataFrame(df_predictors.iloc[index_save_predictors], columns = df_predictors.columns)
+
+'''
+df_i = df_predictors.loc[df_predictors['ID']==id]
+print(df_predictors[df_predictors['ID']==id])
+print(df_i)
+print(df_predictors[df_i])
+STOP
+'''
+
+print(df_LDA_save.dtypes['ID'], df_predictors_save.dtypes['ID'])
+df_predictors_save = df_predictors_save.astype({'ID': 'int64'})#.dtypes
+
+print(df_predictors_save)
+print(df_LDA_save.dtypes['ID'], df_predictors_save.dtypes['ID'])
+
+print(df_LDA_save)
+print(df_predictors_save)
+
+df_merged = df_LDA_save.merge(df_predictors_save, on='ID')
+
+print(df_merged)
+
+df_merged.to_csv(prefix+'classification_out_and_predictors_'+str(merger_type)+'.txt', sep='\t')
 STOP        
         
 	
