@@ -21,60 +21,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import scipy
 import scipy.stats
-
-def SDSS_objid_to_values(objid):
-
-    # Determined from http://skyserver.sdss.org/dr7/en/help/docs/algorithm.asp?key=objID                                                                                                   
-
-    bin_objid = bin(objid)
-    bin_objid = bin_objid[2:len(bin_objid)]
-    bin_objid = bin_objid.zfill(64)
-
-    empty = int( '0b' + bin_objid[0], base=0)
-    skyVersion = int( '0b' + bin_objid[1:4+1], base=0)
-    rerun = int( '0b' + bin_objid[5:15+1], base=0)
-    run = int( '0b' + bin_objid[16:31+1], base=0)
-    camcol = int( '0b' + bin_objid[32:34+1], base=0)
-    firstField = int( '0b' + bin_objid[35+1], base=0)
-    field = int( '0b' + bin_objid[36:47+1], base=0)
-    object_num = int( '0b' + bin_objid[48:63+1], base=0)
-
-    return skyVersion, rerun, run, camcol, field, object_num
-
-def download_galaxy(ID, RA, DEC, size, prefix_frames):
-    decode=SDSS_objid_to_values(ID)
-    if decode[2] < 1000:
-        pref_run = '000'
-    else:
-        pref_run = '00'
-        
-    if decode[4] > 100:
-        pref_field = '0'
-    else:
-        pref_field = '00'
-    
-    name = prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits'
-
-
-    os.system('wget -O '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2 https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
-
-
-
-    os.system('bunzip2 '+prefix_frames+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
-
-    im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
-
-    obj_coords = SkyCoord(ra, dec, frame='icrs', unit='deg')
-    size = u.Quantity((size, size), u.arcsec)#was 80,80                                             
-    wcs_a = WCS(im[0].header)
-
-    stamp_a = Cutout2D(im[0].data, obj_coords, size, wcs=wcs_a)#was image_a[0].data    
-    
-    camera_data=(np.fliplr(np.rot90(stamp_a.data))/0.005)
-
-    im.close()
-
-    return camera_data
+from util_SDSS import SDSS_objid_to_values, download_galaxy
 
 # This is code from compare_mpmerg_to_full_population_CDF.py
 # But here for a list of p values
