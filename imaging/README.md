@@ -2,7 +2,7 @@
 Installation and use instructions:
 
 To install source extractor, I used:
-<brew install sextractor>
+```brew install sextractor```
 
 This installs source extractor but does not correctly include some of the default files, like the convolutional filter and parameter files. I've included these in this directory with the proper settings for running on SDSS files.
 
