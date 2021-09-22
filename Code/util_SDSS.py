@@ -16,7 +16,7 @@ from astropy import units as u
 from astropy.nddata import Cutout2D
 
 
-def download_galaxy(ID, RA, DEC, prefix_frames, size, remove=True):
+def download_galaxy(ID, ra, dec, prefix_frames, size, remove=True):
    decode=SDSS_objid_to_values(ID)
    if decode[2] < 1000:
        pref_run = '000'
@@ -28,9 +28,10 @@ def download_galaxy(ID, RA, DEC, prefix_frames, size, remove=True):
    else:
        pref_field = '00'
    
+   
    name = prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits'
 
-
+   
    os.system('wget -O '+str(prefix_frames)+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2  https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
 
    
@@ -38,7 +39,8 @@ def download_galaxy(ID, RA, DEC, prefix_frames, size, remove=True):
    os.system('bunzip2 '+str(prefix_frames)+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
 
    im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
-
+   print('trying to open this')
+   print(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
    
    
 
@@ -57,6 +59,8 @@ def download_galaxy(ID, RA, DEC, prefix_frames, size, remove=True):
    
 
    im.close()
+
+   
    
    if remove:
       os.system('rm '+prefix_frames+'frame*')
@@ -84,7 +88,7 @@ def SDSS_objid_to_values(objid):
     return skyVersion, rerun, run, camcol, field, object_num
 
 def download_sdss_ra_dec_table(path):
-    file_path = path+'photo_DR16_0_beckynevin.csv'
+    file_path = path+'five_sigma_detection_saturated_mode1_beckynevin.csv'
     f = open(file_path, 'r+')
     data=f.readlines()[1:]
 
