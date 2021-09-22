@@ -50,7 +50,9 @@ for p in p_list:
     print('CDF value is ', hist_dist.cdf(p),' when p_merg = ', p)
 
 # Define the xs of this distribution
-X = np.linspace(0, 1.0, spacing)
+
+X_lin = np.linspace(-100,100,10000)
+X = [1/(1+np.exp(-x)) for x in X_lin]# transform into logit space
 
 # Get all cdf values
 cdf_val = [hist_dist.cdf(x) for x in X]
@@ -70,8 +72,20 @@ X_merg =X[idx_merg]
 print('p_merg value is ', X_non, 'when ',val_non,' of the full population has a lower p_merg value')
 print('p_merg value is ', X_merg, 'when ',1-val_merg,' of the full population has a higher p_merg value')
 
+
+# Can you simply find the p_merg values versus cdf and then plot?
+plt.scatter(X, cdf_val)
+plt.xlabel('p?')
+plt.ylabel('CDF')
+plt.show()
+
+
+
+
 # Put this into a loop:
-cdf_percent = np.linspace(0.1, 0.9, 100)
+cdf_percent = np.linspace(0.01, 0.99, 100)
+
+cdf_percent = [0.01,0.05,0.1,0.25, 0.5, 0.75, 0.9,0.95,0.99]
 for percent in cdf_percent:
     idx, val = find_nearest(np.array(cdf_val),percent)
     X_val = X[idx]
