@@ -18,6 +18,7 @@ import seaborn as sns
 import itertools
 from sklearn import preprocessing
 import os
+from os import path
 import sklearn.metrics as metrics
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.model_selection import KFold
@@ -37,6 +38,160 @@ def locate_min(a):
     smallest = min(a)
     return smallest, [index for index, element in enumerate(a)
                   if smallest == element]
+
+
+def load_LDA_from_simulation_sliding_time(post_coal, run, prefix_frames, type_gal = 'predictors', name='img',
+    verbose=True, plot=True):
+
+
+    feature_dict = {i:label for i,label in zip(
+                range(39),
+                  ('Counter_x',
+                  'Image',
+                  'class label',
+                  'Myr',
+                  'Viewpoint',
+                '# Bulges',
+                   'Sep',
+                   'Flux Ratio',
+                  'Gini',
+                  'M20',
+                  'Concentration (C)',
+                  'Asymmetry (A)',
+                  'Clumpiness (S)',
+                  'Sersic N',
+                  'Shape Asymmetry (A_S)',
+                  'Counter_y',
+                  'Delta PA',
+                              'v_asym',
+                            's_asym',
+                            'resids',
+                            'lambda_r',
+                            'epsilon',
+                            'A',
+                            'A_2',
+                            'deltapos',
+                            'deltapos2',
+                            'nspax','re',
+                            'meanvel','varvel','skewvel','kurtvel',
+                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
+
+    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A\
+_S)','random']
+
+
+    if run[0:12]=='major_merger':
+        priors=[0.9,0.1]#[0.75,0.25]]                                                                                 
+    else:
+        if run[0:12]=='minor_merger':
+            priors=[0.7,0.3]#[0.75,0.25]]                                                                             
+        else:
+            STOP
+
+    # Read in the the measured predictor values from the LDA table                                                 
+    # Load in the full table and then figure out where to draw the line
+
+    print('RUN', run)
+
+    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
+
+    #Rename all of the kinematic columns (is this necessary?)                                                         
+    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
+             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
+              'varsig':'$\sigma_{\sigma}$',
+             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
+             'abskewsig':'$|h_{3,\sigma}|$',
+             'meansig':'$\mu_{\sigma}$',
+             'varvel':'$\sigma_{V}$'},
+    inplace=True)
+
+    df.columns = [l for i,l in sorted(feature_dict.items())]
+
+    df.dropna(how="all", inplace=True) # to drop the empty line at file-end                                           
+    df.dropna(inplace=True) # to drop the empty line at file-end                                                      
+
+    # Define the coalescence point for the different 'Image' names:
+
+
+
+    print('time since coalescence where we are drawing the line', post_coal)
+   
+    #a_dataframe.loc[a_dataframe["B"] > 8, "B"] = "x"
+    #a_dataframe["B"] = np.where(a_dataframe["B"] > 8, "x", a_dataframe["B"])
+    # Maybe just go through the whole dataframe and do this yourself:
+    
+    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] > (2.15 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] > (2.74 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] > (2.59 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] > (3.72 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] > (9.17 +post_coal)),0, df['class label'])
+
+    # Also have to make sure that if the post_coal is greater than 0.5 that everything less
+    # that remains but is labeled as a 1
+    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] < (2.15 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] < (2.74 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] < (2.59 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] < (3.72 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] < (9.17 +post_coal)),1, df['class label'])
+
+    # Make sure you delete everything from before coalescence:
+    
+    # Get names of indexes that below to a given name and were formerly labeled as mergers and are before coal:
+    indexNames = df[ (df['Image']=='fg3_m12') & (df['Myr'] <2.16) & (df['class label'] ==1) ].index
+    # Delete these row indexes from dataFrame
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg1_m13') & (df['Myr'] <2.75) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m13') & (df['Myr'] <2.60) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m15') & (df['Myr'] <3.73) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m10') & (df['Myr'] <9.18) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    
+    print(df['class label'].value_counts())
+    
+
+
+
+    myr=[]
+    myr_non=[]
+    for j in range(len(df)):
+        if df[['class label']].values[j][0]==0.0:
+            myr_non.append(df[['Myr']].values[j][0])
+        else:
+            myr.append(df[['Myr']].values[j][0])
+
+    print('myr that are considered merging', sorted(set(myr)))
+    print('myr that are nonmerging', sorted(set(myr_non)))
+    len_nonmerg = len(myr_non)
+    len_merg = len(myr)
+
+    myr_non=sorted(list(set(myr_non)))
+    myr=sorted(list(set(myr)))
+
+    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, run, verbose)
+    output_LDA = run_LDA(run, df, priors,terms_RFR, myr, myr_non, 21,  verbose)
+
+
+
+    std_mean = output_LDA[0]
+    std_std = output_LDA[1]
+    inputs_all = output_LDA[2]
+
+
+
+    coeff = output_LDA[3]
+    inter = output_LDA[4]
+    LDA_ID = output_LDA[8]
+    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg                                                          
+
+
 
 def load_LDA_from_simulation(run, prefix_frames, type_gal = 'predictors', name='img',
     verbose=True, plot=True):
@@ -102,9 +257,7 @@ def load_LDA_from_simulation(run, prefix_frames, type_gal = 'predictors', name='
 
     df.dropna(how="all", inplace=True) # to drop the empty line at file-end
     df.dropna(inplace=True) # to drop the empty line at file-end
-
-
-
+    print(df['class label'].value_counts())
     myr=[]
     myr_non=[]
     for j in range(len(df)):
@@ -113,13 +266,33 @@ def load_LDA_from_simulation(run, prefix_frames, type_gal = 'predictors', name='
         else:
             myr.append(df[['Myr']].values[j][0])
 
+    print('myr that are considered merging', sorted(set(myr)))
+    print('myr that are nonmerging', sorted(set(myr_non)))
+
+
     len_nonmerg = len(myr_non)
     len_merg = len(myr)
 
     myr_non=sorted(list(set(myr_non)))
     myr=sorted(list(set(myr)))
     
-    terms_RFR, reject_terms_RFR = run_RFR(df, features_list, run, verbose)
+    '''
+    # Fine. Investigate the distributions:
+    plt.clf()
+    # Investigate this dataframe
+    from pandas.plotting import scatter_matrix
+    scatter_matrix(df[features_list])
+    plt.show()
+
+    # What is going on with the Seris N
+    plt.clf()
+    plt.hist(df['Sersic N'].values, bins=100)
+    plt.show()
+    '''
+
+    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, run, verbose)
+    
+
     output_LDA = run_LDA(run, df, priors,terms_RFR, myr, myr_non, 21,  verbose)
    
     
@@ -260,11 +433,10 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
     #~~~~~~~
 
     print('loading up predictor value table........')
-    #prefix = '/Users/beckynevin/CfA_Code/Cannon/parallel_SDSS/'
     df2 = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all.txt', sep='\t')
     
 
-    #df2 = df2[0:10000]
+    df2 = df2[0:1000]
     
     if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
         df2 = df2.iloc[: , 1:]
@@ -272,12 +444,12 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
     
 
     # First, delete all rows that have weird values of n:
-    print('len before crazy values', len(df2))
-    df_filtered = df2[df2['Sersic N'] < 10]
+    #print('len before crazy values', len(df2))
+    #df_filtered = df2[df2['Sersic N'] < 10]
 
-    df_filtered_2 = df_filtered[df_filtered['Asymmetry (A)'] > -1]
+    #df_filtered_2 = df_filtered[df_filtered['Asymmetry (A)'] > -1]
 
-    df2 = df_filtered_2
+    #df2 = df_filtered_2
 
     # Delete duplicates:
     print('len bf duplicate delete', len(df2))
@@ -345,12 +517,16 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
             STOP
 
 
-    # Make a table with merger probabilities and other diagnostics:
-    print('making table of LDA output for all galaxies.....')
-    file_out = open(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
-    file_out.write('ID'+'\t'+
-    'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
-    #+'Second_term'+'\t'+'Second_coef'+'\n')
+    
+    print('this is what its hanging on', prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt')
+    if path.exists(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt'):
+    	print('Table already exists')
+    else:
+	# Make a table with merger probabilities and other diagnostics:
+    	print('making table of LDA output for all galaxies.....')
+    	file_out = open(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt','w')
+    	file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
+    	#+'Second_term'+'\t'+'Second_coef'+'\n')
 
     most_influential_nonmerg = []
     most_influential_merg = []
@@ -363,17 +539,7 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
     p_merg_merg_SDSS = []
     p_merg_nonmerg_SDSS = []
     
-    '''
-    std_mean = output_LDA[0]
-    std_std = output_LDA[1]
-    inputs_all = output_LDA[2]
-
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
-    LDA_ID = output_LDA[8]
-    '''
+    
 
     for j in range(len(X_gal)):
         #print(X_gal[j])
@@ -417,22 +583,23 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
             
             most_influential_nonmerg.append(most_influential_term)
             most_influential_nonmerg_c.append(most_influential_coeff)
-        file_out.write(str(df2[['ID']].values[j][0])+'\t'+
-        str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'+most_influential_term+'\t'+str(most_influential_coeff)+'\n')
-        #+sec_most_influential_term+'\t'+str(sec_most_influential_coeff)+'\n')
-        
+        if path.exists(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt'):
+            pass
+        else:
+            file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'+most_influential_term+'\t'+str(most_influential_coeff)+'\n')
         p_merg_list.append(p_merg)
-        #STOP
-        
+                
         testing_Gini.append(df2['Gini'].values[j])
         testing_M20.append(df2['M20'].values[j])
         testing_C.append(df2['Concentration (C)'].values[j])
         testing_A.append(df2['Asymmetry (A)'].values[j])
         testing_n.append(df2['Sersic N'].values[j])
         testing_A_S.append(df2['Shape Asymmetry (A_S)'].values[j])
-
-    file_out.close()
-    print('finished writing out LDA file')
+    if path.exists(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(run)+'.txt'):
+        pass
+    else:
+    	file_out.close()
+    	print('finished writing out LDA file')
 
 
 
@@ -1542,8 +1709,7 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
 
 
     # Now, for the SDSS show
-    table_path = '/Users/beckynevin/CfA_Code/Kinematics_and_Imaging_Merger_Identification/Tables/'
-    sdss, ra, dec = download_sdss_ra_dec_table(table_path)
+    sdss, ra, dec = download_sdss_ra_dec_table(prefix)
 
     sns.set_style("white")
     count = 0
@@ -1767,9 +1933,11 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
             # Figure out which position you need to put this in
             axs[axis_number].imshow(np.abs(camera_data),norm=colors.LogNorm(vmin=10**(3), vmax=10**(6.5)), cmap='afmhot')#vmin=10**(1), vmax=10**(4)norm=colors.LogNorm(vmin=10**(-1), vmax=10**(2.5))
             if str(run) == 'minor_merger':
-                axs[axis_number].annotate('p$_{\mathrm{merg, minor}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),color='white', size=10)
+                axs[axis_number].annotate('p$_{\mathrm{merg, minor}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),xytext=(0.03, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
             else:
-                axs[axis_number].annotate('p$_{\mathrm{merg, major}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),color='white', size=10)
+                axs[axis_number].annotate('p$_{\mathrm{merg, major}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),xytext=(0.03, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
             axs[axis_number].annotate('ObjID = '+str(gal_id), xycoords='axes fraction',xy=(0.05,0.02),color='white', size=10)
             axs[axis_number].set_yticklabels([])
             axs[axis_number].set_xticklabels([])
@@ -1824,9 +1992,11 @@ def classify(prefix, type_gal, run, LDA, terms_RFR, df, name='img', verbose=Fals
             # Figure out which position you need to put this in
             axs[axis_number].imshow(np.abs(camera_data),norm=colors.LogNorm(vmin=10**(3), vmax=10**(6.5)), cmap='afmhot')#vmin=10**(1), vmax=10**(4)norm=colors.LogNorm(vmin=10**(-1), vmax=10**(2.5))
             if str(run) == 'minor_merger':
-                axs[axis_number].annotate('p$_{\mathrm{merg, minor}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),color='white', size=10)
+                axs[axis_number].annotate('p$_{\mathrm{merg, minor}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),xytext=(0.03, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
             else:
-                axs[axis_number].annotate('p$_{\mathrm{merg, major}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),color='white', size=10)
+                axs[axis_number].annotate('p$_{\mathrm{merg, major}} = $'+str(round(p_merg_list[p],2))+', CDF = '+str(round(hist_dist.cdf(p_merg_list[p]),2))+'\n'+'LD1 =  '+str(round(LD1_SDSS[p],2))+'\n'+str(most_influential), xycoords='axes fraction',xy=(0.05,0.78),xytext=(0.03, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
             axs[axis_number].annotate('ObjID = '+str(gal_id), xycoords='axes fraction',xy=(0.05,0.02),color='white', size=10)
             #axs[axis_number].axis('off')
             axs[axis_number].set_yticklabels([])
