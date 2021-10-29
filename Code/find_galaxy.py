@@ -72,7 +72,7 @@ size = 80
  
 prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger/Tables/'
 
-df_predictors = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all.txt', sep='\t')
+df_predictors = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_all_flags.txt', sep='\t')
 
 #df_predictors.columns = ['ID','Sep','Flux Ratio',  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
 
@@ -85,9 +85,10 @@ df_predictors = df_predictors.astype({'ID': 'int64'})#.dtypes
 
 # Step 2: import the probability values for these galaxies
 
-df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(merger_type)+'.txt', sep='\t')
+df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(merger_type)+'_flags.txt', sep='\t')
 #print(df_LDA.columns, df_predictors.columns)
 df_LDA = df_LDA.astype({'ID': 'int64'})
+
 
 # Step 3: match from the list of IDs:
 ID_list = [1237661125071208589, 1237654654171938965, 1237651212287475940, 1237659325489742089, 1237651273490628809, 1237661852007596057, 1237657878077702182, 1237667912748957839, 1237662665888956491, 1237655504567926924, 0, 1237664673793245248, 1237653009194090657, 1237667212116492386, 1237660024524046409, 1237654949448646674, 1237656496169943280, 1237663784217804830, 1237673706113925406, 1237656567042539991, 1237653587947815102, 1237651191354687536, 1237661387069194275, 1237651226784760247, 1237658204508258428, 1237661957225119836, 1237653589018018166, 1237651251482525781, 1237658802034573341, 1237663457241268416, 1237663529718841406, 1237651272956641566, 1237667910601932987, 1237659326029365299, 1237661852538437650, 1237665549422952539, 1237659327099896118, 1237651212287672564, 1237666299480309878, 1237657856607649901, 1237654952670789707, 1237654949448450067, 1237660241386143913, 1237652899700998392, 1237664837002395706, 1237654626785821087, 1237654391639638190]
@@ -105,15 +106,17 @@ cdf_list = []
 
 # get all p_values from the sample:
 p_vals = df_LDA['p_merg'].values
+
 spacing = 10000 # this will be the histogram binning but also how finely sampled the CDF is                                                     
 hist = np.histogram(p_vals, bins=spacing)
 # Put this in continuous distribution form in order to calculate the CDF                                                                            \
 hist_dist = scipy.stats.rv_histogram(hist)
 
 # Define the xs of this distribution                                                                                                                     
-X = np.linspace(0, 1.0, spacing)
+X_lin = np.linspace(-100,100,10000)
+X = [1/(1+np.exp(-x)) for x in X_lin]# transform into logit space
 
-# Get all cdf values                                                                                                                                     
+# Get all cdf values
 cdf_val = [hist_dist.cdf(x) for x in X]
 
 idx_non, val_non = find_nearest(np.array(cdf_val), 0.1)
@@ -164,7 +167,7 @@ for i in range(len(ID_list)):
     
     # get the corresponding cdf value:
     try:
-        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][3])
+        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][4])
     except IndexError:
         # This means there was no match
         continue
@@ -178,17 +181,20 @@ for i in range(len(ID_list)):
 
 
         if plot:
-            img = download_galaxy(id, ra, dec, size, prefix+'../frames/')
+            img = download_galaxy(id, ra, dec, prefix+'../frames/', size)
 
             shape = np.shape(img)[0]
-
             
             plt.clf()
             fig = plt.figure()
             ax = fig.add_subplot(111)
             ax.imshow(abs(img), norm=matplotlib.colors.LogNorm())
-            ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+'\nCDF = '+str(round(cdf,4)), xy=(0.03, 0.85),  xycoords='axes fraction',
+            ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][3],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][4],4))+'\nCDF = '+str(round(cdf,4)), xy=(0.03, 0.85),  xycoords='axes fraction',
             xytext=(0.03, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
+            if df_LDA.values[where_LDA][0][8] ==1 or df_LDA.values[where_LDA][0][9] ==1:
+                ax.annotate('Photometric Flag', xy=(0.8, 0.85),  xycoords='axes fraction',
+            xytext=(0.8, 0.85), textcoords='axes fraction',
             bbox=dict(boxstyle="round", fc="0.9"), color='black')
             ax.set_title('ObjID = '+str(id))
             ax.set_xticks([0, (shape - 1)/2, shape-1])
@@ -196,8 +202,8 @@ for i in range(len(ID_list)):
             ax.set_yticks([0, (shape- 1)/2,shape-1])
             ax.set_yticklabels([-size/2, 0,size/2])
             ax.set_xlabel('Arcsec')
-            plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+str(id)+'.png', dpi=1000)
-
+            plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+str(id)+'_'+str(merger_type)+'.png', dpi=1000)
+            
         index_save_LDA.append(where_LDA[0])
         index_save_predictors.append(where_predictors)
 
