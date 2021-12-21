@@ -26,14 +26,13 @@ import os
 
 run = 'major_merger'
 
-print(str(os.getcwd())+'../frames/')
-
-LDA,RFR, df = load_LDA_from_simulation(run,str(os.getcwd())+'../frames/', type_gal = 'predictors',name='img',verbose=False)
+# load_LDA_from_simulation loads in a Table of predictor values from the simulation (LDA_merged_'+str(run)+'.txt')
+LDA, RFR, df = load_LDA_from_simulation(run, verbose=False, plot=False)
 
 
 
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print('inputs', LDA[2])
+print('selected features', LDA[2])
 print('coefficients', LDA[3])
 print('intercept', LDA[4])
 print('accuracy, precision, and recall for simulated galaxies [5-7]', LDA[5], LDA[6], LDA[7])
@@ -46,7 +45,7 @@ print(RFR)
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
-# The output of this is in the format:
+# All of the dimensions of `LDA':
 # 0 = standardized means on all of the coefficients
 # 1 = standardized stds
 # 2 = inputs
@@ -62,6 +61,11 @@ print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 # 12 = means of all classes
 
 ```
+
+Other versions of the load_LDA_from_simulation function are:
+-load_LDA_from_simulation_sliding_time, which allows you to adjust the time of post-coalescence cut-off
+-load_LDA_from_simulation_changing_priors, which allows you to input the starting prior, we used this to explore how changing the input prior alters the measured merger fraction
+-load_LDA_from_simulation_changing_priors_changing_validation_set, which allows you to play around with the relative fraction of mergers in the validation set
 
 ## 2) Measure predictor values from images (GalaxySmelter):
 I also include some utilities for visualizing individual galaxies and their predictor values.

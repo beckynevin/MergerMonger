@@ -3,7 +3,7 @@
 The wrapper for creating the LDA_out tables for the fully SDSS dataset
 ~~~
 '''
-from MergerMonger import load_LDA_from_simulation, classify
+from MergerMonger import load_LDA_from_simulation, classify, classify_from_flagged
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -16,6 +16,9 @@ run = 'major_merger'
 print(str(os.getcwd())+'../frames/')
 
 LDA,RFR, df = load_LDA_from_simulation(run,str(os.getcwd())+'../frames/', type_gal = 'predictors',name='img',verbose=False)
+
+
+
 print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 print('inputs', LDA[2])
 print('coefficients', LDA[3])
@@ -66,8 +69,9 @@ plt.show()
 type_gal = 'predictors'
 verbose='yes'
 
+LDA, p_merg, CDF = classify_from_flagged('../Tables/','../frames/',type_gal, run, LDA, RFR, df, 10000, verbose=True, all = False, cut_flagged = True)
 
-LDA, p_merg, CDF = classify('../Tables/',type_gal, run, LDA, RFR, df, verbose=True)
+#LDA, p_merg, CDF = classify('../Tables/','../frames',type_gal, run, LDA, RFR, df, verbose=False)
     
 
 # Now plot the LDA values from the classified galaxies
