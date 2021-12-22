@@ -1,8 +1,11 @@
-## MergerMonger <img src="images_for_github/mongoose.png" alt="goose" width="200">
+## MergerMonger <img src="images_for_github/mongoose.png" alt="goose" width="100">
 # A suite of tools for identifying different types of mergers in SDSS imaging
 Based on the imaging classification presented in <a href="https://arxiv.org/abs/1901.01975">Nevin+2019</a> and Nevin+2022.
 
-There are three main steps: 1) Creating the classification from simulations of merging galaxies, 2) Measuring predictor values from images of galaxies, and 3) Classifying galaxies and obtaining probability values using the output from steps 1 and 2.
+There are three main steps: 
+1) Creating the classification from simulations of merging galaxies, 
+2) Measuring predictor values from images of galaxies, and 
+3) Classifying galaxies and obtaining probability values using the output from steps 1 and 2.
 
 Let's dig in:
 ## 1) Creating the classification from simulations of merging galaxies:
@@ -66,12 +69,13 @@ Other versions of the load_LDA_from_simulation function are:
 -load_LDA_from_simulation_changing_priors_changing_validation_set, which allows you to play around with the relative fraction of mergers in the validation set
 
 ## 2) Measure predictor values from images (GalaxySmelter):
-Within util_smelter.py, there are a number of utilities for creating massive tables of predictor values. I also include some utilities for visualizing individual galaxies and their predictor values:
+Within util_smelter.py, there are a number of utilities for creating massive tables of predictor values. I also include some utilities for visualizing individual galaxies and their predictor values like this:
+
 <img src="images_for_github/prob_panel_low.png" alt="probability panel" width="700">
 
-The basic process involves first using util_SDSS.py to download SDSS frame images and then using util_smelter.py to measure imaging predictor values from these images. This process utilizes a combination of Source Extractor, Galfit, and statmorph to measure Gini, M20, Concentration, Asymmetry, Clumpiness, Sersic n, Shape Asymmetry, and average S/N value for SDSS r-band images that are downloaded using wget. Within util_smelter.py there are some tools for automatically downloading and then options for deleting SDSS frame images as you go, which is nice because these are huge. 
+The basic process involves first using util_SDSS.py to download SDSS frame images and then using util_smelter.py to measure imaging predictor values from these images. This process utilizes a combination of Source Extractor, Galfit, and statmorph to measure Gini, M20, Concentration, Asymmetry, Clumpiness, Sersic n, Shape Asymmetry, and average S/N value for SDSS r-band images that are downloaded using wget. Within util_smelter.py there are some tools for automatically downloading and then options for deleting SDSS frame images as you go, which is nice because these files are huge. 
 
-The function util_smelter.get_predictors can be run to write out a single line in a data table with all of the predictor values for a single galaxy image:
+Here's an example of how to use these utilities to download galaxies from a list of IDs, make cutout images, measure the imaging predictor values for these images, and save them to a table that is the input for step #3:
 
 ```
 from util_SDSS import SDSS_objid_to_values, download_galaxy
@@ -139,6 +143,29 @@ Examples of running this for a list of SDSS IDs can be seen in find_galaxy_check
 Also in util_smelter.py, I include utilities that I used on the supercomputer to run the full SDSS dataset in parallel. 
 
 ## 3) Classify galaxies and obtain merger probability values:
+The final step is to apply the LDA classification derived in step #1 to the predictor value tables generated in step #2 to obtain probability values. Here's a schematic of how this works:
+
 <img src="images_for_github/p_merg_recipe.png" alt="walkthrough" width="700">
 
+Code example of how to generate the output probability tables (.txt) are provided in classify_SDSS.py. Here's a snippet:
+
+```
+from MergerMonger import load_LDA_from_simulation, classify, classify_from_flagged
+import numpy as np
+
+# After running step #1:
+LDA, p_merg, CDF = classify('../Tables/','../frames/',type_gal, run, LDA, RFR, df, 10000, verbose=True, all = False, cut_flagged = True)
+# The classify utility in MergerMonger.py loads up the predictor value table (SDSS_predictors_all.txt), standardizes all values, plugs them into the LD1 formula for a given classification, and saves an LDA table (LDA_out_all_SDSS_predictors....txt) with the LD1 and probability values.
+
+```
+
 I also include some utilities for interpreting these probability values using the CDF of the full population.
+
+## Dependencies
+
+You must have this stuff installed and updated for everything to run smoothly:
+1) Galfit
+2) Source Extractor
+3) Statmorph
+4) wget
+5) non-standard python stuff: astropy (vers), photutils, sklearn (vers), seaborn 
