@@ -1,7 +1,10 @@
-### MergerMonger: Identify different types of mergers in SDSS imaging
+## MergerMonger
+# A suite of tools for identifying different types of mergers in SDSS imaging
 Based on the imaging classification presented in Nevin+2019 and Nevin+2022.
 
-There are three main steps:
+There are three main steps: 1) Creating the classification from simulations of merging galaxies, 2) Measuring predictor values from images of galaxies, and 3) Classifying galaxies and obtaining probability values using the output from steps 1 and 2.
+
+Let's dig in:
 ## 1) Creating the classification from simulations of merging galaxies:
 <img src="images_for_github/panel_merger_timeline.png" alt="sims" width="700">
 
@@ -63,8 +66,77 @@ Other versions of the load_LDA_from_simulation function are:
 -load_LDA_from_simulation_changing_priors_changing_validation_set, which allows you to play around with the relative fraction of mergers in the validation set
 
 ## 2) Measure predictor values from images (GalaxySmelter):
-I also include some utilities for visualizing individual galaxies and their predictor values.
+Within util_smelter.py, there are a number of utilities for creating massive tables of predictor values. I also include some utilities for visualizing individual galaxies and their predictor values:
 <img src="images_for_github/prob_panel_low.png" alt="probability panel" width="700">
+
+The basic process involves first using util_SDSS.py to download SDSS frame images and then using util_smelter.py to measure imaging predictor values from these images. This process utilizes a combination of Source Extractor, Galfit, and statmorph to measure Gini, M20, Concentration, Asymmetry, Clumpiness, Sersic n, Shape Asymmetry, and average S/N value for SDSS r-band images that are downloaded using wget. Within util_smelter.py there are some tools for automatically downloading and then options for deleting SDSS frame images as you go, which is nice because these are huge. 
+
+The function util_smelter.get_predictors can be run to write out a single line in a data table with all of the predictor values for a single galaxy image:
+
+```
+from util_SDSS import SDSS_objid_to_values, download_galaxy
+from util_smelter import get_predictors
+import pandas as pd
+
+# Path to where you're storing all of the tables:
+prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger/Tables/'
+
+# Load in the predictor table from SDSS with all of the flags
+df_predictors = pd.io.parsers.read_csv(prefix+'SDSS_predictors_all_flags_plus_segmap.txt', sep='\t')
+
+#df_predictors.columns = ['ID','Sep','Flux Ratio',  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
+
+if len(df_predictors.columns) ==15: #then you have to delete the first column which is an empty index
+    df_predictors = df_predictors.iloc[: , 1:]
+  
+# Change the type of the ID in predictors:
+df_predictors = df_predictors.astype({'ID': 'int64'})#.dtypes 
+
+# Choose only clean galaxies (not flagged):
+df_no_flags = df_predictors[(df_predictors['low S/N']==0) & (df_predictors['outlier predictor']==0) & (df_predictors['segmap']==0)]
+print('length of no flags', len(df_no_flags))
+
+# Select the first 200 IDs
+ID_list = df_no_flags['ID'].values[0:200]
+
+# Alternately, you could just input a list of your own IDs:
+# i.e., these are GalaxyZoo spirals that are classified as non-mergers by my major merger classifier:
+# ID_list = [1237655693557170541, 1237648673456455904, 1237668649315008771, 1237668649315074455, 1237668649315205346, 1237668568247370040, 1237668649852076495, 1237668649852207363, 1237668568784437849, 1237668568784437611, 1237668568784503051, 1237668568784503170, 1237668650389340761, 1237668650926342749, 1237668650926342753, 1237668650926408199, 1237668569858638234, 1237668650926539340, 1237668569858703829, 1237668569858703926]
+
+# Go through and look up the RAs and Decs, alternately enter in your own:
+ra_dec_lookup = pd.read_csv('../Tables/five_sigma_detection_saturated_mode1_beckynevin.csv')
+RA_list = []
+dec_list = []
+
+for j in range(len(ID_list)):
+    counter = 0
+    for i in range(len(ra_dec_lookup)):
+        if ID_list[j]==ra_dec_lookup['objID'].values[i]:
+            RA_list.append(ra_dec_lookup['ra'].values[i])
+            dec_list.append(ra_dec_lookup['dec'].values[i])
+            counter+=1
+    if counter==0:
+        RA_list.append(0)
+        dec_list.append(0)
+
+for i in range(len(ID_list)):
+	# First, uses wget to download the frame corresponding to this individual galaxy. 
+	# SO YOU MUST HAVE WGET INSTALLED
+	# Makes a cutout in arcsec corresponding to 'size'
+	# Also automatically removes the frame once you're done
+	# Returns a 2D array that is the image cutout of this galaxy
+	img = download_galaxy(id, ra, dec, prefix+'../frames/', size, remove=True)
+
+	# Now measure the predictors
+	# The function get_predictors writes out a single line in a data table with all of the predictor values for a single galaxy image:
+	preds = get_predictors(id, img, prefix+'../', size)
+	# The output is:
+	# return camera_data, segmap, gini, m20, con, asy, clu, ser, n, inc, s_n
+	# 0 is the image, 1 is the segmentation map used to measure the imaging predictors, gini, m20, C, A, S, sersic n, inclination from galfit, and S/N from statmorph
+```
+Examples of running this for a list of SDSS IDs can be seen in find_galaxy_check_predictors_and_segmap.py, where you have the option to measure predictor values. find_galaxy.py downloads galaxies by ID but uses their predictor values from the existing table.
+
+Also in util_smelter.py, I include utilities that I used on the supercomputer to run the full SDSS dataset in parallel. 
 
 ## 3) Classify galaxies and obtain merger probability values:
 <img src="images_for_github/p_merg_recipe.png" alt="walkthrough" width="700">

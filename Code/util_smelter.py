@@ -24,7 +24,7 @@ import numpy as np
 from astropy.io import fits
 import os
 import matplotlib
-matplotlib.use('agg')
+#matplotlib.use('agg') Use this if running on a supercomputer
 import matplotlib.pyplot as plt
 from astropy.cosmology import WMAP9 as cosmo
 from astropy.convolution import Gaussian2DKernel
@@ -43,6 +43,7 @@ from astropy import units as u
 from astropy.nddata import Cutout2D
 import scipy.ndimage as ndi
 import statmorph
+from astropy.visualization import simple_norm
 
 """
 This file defines the `make_figure` function, which can be useful for
@@ -61,7 +62,6 @@ from astropy.io import fits
 import shlex
 import subprocess
 
-import utilities
 import time
 
 __all__ = ['make_figure']
@@ -80,13 +80,36 @@ def rm_frame(pref, string):
     os.system('rm '+pref+string+'*')
     return
 
-def get_predictors(id, image, prefix):
+def get_predictors(id, image, prefix, size, verbose=False, just_segmap=False):
 
     num = 'troubleshoot_predictors'
 
     camera_data=(np.fliplr(np.rot90(image))/0.005)
    
     camera_data_sigma = np.sqrt(abs(image))
+
+    '''This is vicente's method'''
+    threshold = photutils.detect_threshold(camera_data, nsigma=1.5)#, background=0.0)#was 1.5
+    npixels = 5  # minimum number of connected pixels was 5
+    segm = photutils.detect_sources(camera_data, threshold, npixels)
+
+
+    try:
+        label = np.argmax(segm.areas) + 1
+    except ValueError:
+        rm_files(prefix, id)
+        write_fails_txt(prefix, sdss, num, 'Segmentation')
+        return
+        
+  
+    segmap = segm.data == label
+    
+
+    segmap_float = ndi.uniform_filter(np.float64(segmap), size=10)
+    segmap = segmap_float > 0.5
+
+    if just_segmap:
+        return camera_data, segmap
     
    
 
@@ -123,7 +146,7 @@ def get_predictors(id, image, prefix):
     
   
     outfile = prefix + 'imaging/out_convolved_'+str(id)+'.fits'
-    hdu = fits.PrimaryHDU((camera_data))
+    hdu = fits.PrimaryHDU(abs(camera_data))
     hdu_number = 0
     hdu.writeto(outfile, overwrite=True)
     hdr=fits.getheader(outfile, hdu_number)
@@ -134,7 +157,7 @@ def get_predictors(id, image, prefix):
     hdu.writeto(outfile, overwrite=True)
 
     outfile = prefix + 'imaging/out_sigma_convolved_'+str(id)+'.fits'
-    hdu = fits.PrimaryHDU((camera_data_sigma))
+    hdu = fits.PrimaryHDU(abs(camera_data_sigma))
     hdu_number = 0
     hdu.writeto(outfile, overwrite=True)
     hdr=fits.getheader(outfile, hdu_number)
@@ -146,12 +169,12 @@ def get_predictors(id, image, prefix):
     
  
     
-    utilities.write_sex_default(str(id), prefix)
-    utilities.run_sex(str(id), prefix)
+    write_sex_default(str(id), prefix)
+    run_sex(str(id), prefix)
 
 
 
-    sex_out=utilities.sex_params_galfit(str(id), prefix)
+    sex_out = sex_params_galfit(str(id), prefix)
     
 
     #output if there are 2 bright sources aka 2 stellar bulges:
@@ -161,7 +184,7 @@ def get_predictors(id, image, prefix):
     #output if 1 bulge:
         #return sex_pet_r, minor, flux, x_max, y_max, n_bulges, eff_radius_1, B_A_1, PA_1, back_1
     
-    bg_data=utilities.plot_sex(str(id), sex_out[3], sex_out[4], prefix)
+    bg_data = plot_sex(str(id), sex_out[3], sex_out[4], prefix)
     length_gal=np.shape(camera_data)[0]
     
     
@@ -225,11 +248,11 @@ def get_predictors(id, image, prefix):
         #file.write('WRITE')
         #file.close()
         #STOP
-        f=utilities.write_galfit_feedme(id, prefix, x_pos_1, y_pos_1, x_pos_2, y_pos_2, mag_guess, mag_zpt, num_bulges, length_gal, eff_rad_1, eff_rad_2, mag_guess_2, AR_1, PA1, AR_2, PA2, bg_level)
+        f = write_galfit_feedme(id, prefix, x_pos_1, y_pos_1, x_pos_2, y_pos_2, mag_guess, mag_zpt, num_bulges, length_gal, eff_rad_1, eff_rad_2, mag_guess_2, AR_1, PA1, AR_2, PA2, bg_level)
         
     else:
         
-        f=utilities.write_galfit_feedme(id, prefix, x_pos_1, y_pos_1, 0,0, mag_guess, mag_zpt, num_bulges, length_gal, eff_rad_1,0,0, AR_1, PA1, 0, 0, bg_level)
+        f=write_galfit_feedme(id, prefix, x_pos_1, y_pos_1, 0,0, mag_guess, mag_zpt, num_bulges, length_gal, eff_rad_1,0,0, AR_1, PA1, 0, 0, bg_level)
    
     '''Runs galfit inline and creates an output file'''
     # But first check if the file exists
@@ -241,7 +264,7 @@ def get_predictors(id, image, prefix):
         
         return 
     
-    g=utilities.run_galfit(str(id), prefix)
+    g = run_galfit(str(id), prefix)
     #STOP
     
     output=prefix+'imaging/out_'+str(id)+'.fits'
@@ -252,14 +275,14 @@ def get_predictors(id, image, prefix):
         #sometimes Galfit fails and you need to move on with your life.
         #It should really work for the majority of cases though.
         write_fails_txt(prefix, id, num, 'NoGalfitOut')
-        rm_files(prefix,id)
+        #rm_files(prefix,id)
 
         
         return 
     
     
     # This measures useful parameters from the galfit output file
-    h=utilities.galfit_params(id,num_bulges, prefix)
+    h = galfit_params(id,num_bulges, prefix)
     if h[2]==999:
         rm_files(prefix, id)
         write_fails_txt(prefix, id, num, 'Galfitparams')
@@ -273,25 +296,8 @@ def get_predictors(id, image, prefix):
     inc=h[3]
 
 
-    '''This is vicente's method'''
-    threshold = photutils.detect_threshold(camera_data, nsigma=1.5)#, background=0.0)#was 1.5
-    npixels = 5  # minimum number of connected pixels was 5
-    segm = photutils.detect_sources(camera_data, threshold, npixels)
-
-
-    try:
-        label = np.argmax(segm.areas) + 1
-    except ValueError:
-        rm_files(prefix, sdss)
-        write_fails_txt(prefix, sdss, num, 'Segmentation')
-        return
-        
-  
-    segmap = segm.data == label
     
 
-    segmap_float = ndi.uniform_filter(np.float64(segmap), size=10)
-    segmap = segmap_float > 0.5
     
 
     #call statmorph
@@ -299,17 +305,17 @@ def get_predictors(id, image, prefix):
     try:
         source_morphs = statmorph.source_morphology(camera_data, segmap, gain=100, skybox_size=10)#,weightmap=camera_data_sigma)#psf=psf,
     except ValueError:
-        rm_files(prefix, sdss)
-        write_fails_txt(prefix, sdss, num, 'Statmorph')
+        rm_files(prefix, id)
+        write_fails_txt(prefix, id, num, 'Statmorph')
         return
         
   
   
     try:
-        n = utilities.img_assy_shape(segmap,sdss)
+        n = img_assy_shape(segmap,id)
     except IndexError:
-        rm_files(prefix, sdss)
-        write_fails_txt(prefix, sdss, num, 'As')
+        rm_files(prefix, id)
+        write_fails_txt(prefix, id, num, 'As')
         return
 
         
@@ -317,7 +323,10 @@ def get_predictors(id, image, prefix):
         
     
     morph=source_morphs[0]
-       
+    if verbose:
+        make_figure(morph)
+        plt.show()
+
     
     gini=morph.gini
     m20=morph.m20
@@ -330,21 +339,22 @@ def get_predictors(id, image, prefix):
     s_n = morph.sn_per_pixel
     
     # Delete a lot of the saved files:
-    rm_files(prefix, sdss)
+    rm_files(prefix, id)
     
 
     n_stat = morph.shape_asymmetry
 
     # what it was:
-    write_string = str(sdss)+'\t'+str(sep)+'\t'+str(flux_r)+'\t'+str(gini)+'\t'+str(m20)+'\t'+str(con)+'\t'+str(asy)+'\t'+str(clu)+'\t'+str(ser)+'\t'+str(n)+'\t'+str(inc)+'\t'+str(s_n)+'\t'+str(ser_stat)+'\t'+str(n_stat)+'\n'
+    write_string = str(id)+'\t'+str(sep)+'\t'+str(flux_r)+'\t'+str(gini)+'\t'+str(m20)+'\t'+str(con)+'\t'+str(asy)+'\t'+str(clu)+'\t'+str(ser)+'\t'+str(n)+'\t'+str(inc)+'\t'+str(s_n)+'\t'+str(ser_stat)+'\t'+str(n_stat)+'\n'
     
     #write_string = str(sdss)+'\t'+str(gini)+'\t'+str(m20)+'\t'+str(con)+'\t'+str(asy)+'\t'+str(clu)+'\t'+str(ser_stat)+'\t'+str(n)+'\t'+str(s_n)+'\n'
 
-    file1=open(prefix+'Tables/SDSS_DR12_predictors_MPI_one_'+str(num)+'.txt','a+')
+    file1=open(prefix+'Tables/SDSS_DR12_predictors_MPI_'+str(num)+'.txt','a+')
     #if m ==0 and num==0:
     #    file1.write('ID'+'\t'+'Sep'+'\t'+'Flux_ratio'+'\t'+'Gini'+'\t'+'M20'+'\t'+'C'+'\t'+'A'+'\t'+'S'+'\t'+'Sersic n'+'\t'+'A_s'+'\t'+'inc'+'\t'+'S/N'+'\t'+'Sersic n statmorph'+'\t'+'A_s_stat'+'\n')
     file1.write(write_string)
 
+    return camera_data, segmap, gini, m20, con, asy, clu, ser, n, inc, s_n
 #args = sdss_list[1], ra_list[1], dec_list[1]
 #out = mainFunc(sdss_list[1], ra_list[1], dec_list[1])
 #print('output', out)
@@ -379,7 +389,322 @@ def normalize(image, m=None, M=None):
     retval[image >= M] = 1.0
 
     return retval
+def _get_ax(fig, row, col, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig):
+    x_ax = (col+1)*eps + col*wpanel
+    y_ax = eps + (nrows-1-row)*(hpanel+htop)
+    return fig.add_axes([x_ax/wfig, y_ax/hfig, wpanel/wfig, hpanel/hfig])
+
 def make_figure(morph):
+    """
+    Creates a figure analogous to Fig. 4 from Rodriguez-Gomez et al. (2019)
+    for a given ``SourceMorphology`` object.
+    
+    Parameters
+    ----------
+    morph : ``statmorph.SourceMorphology``
+        An object containing the morphological measurements of a single
+        source.
+    Returns
+    -------
+    fig : ``matplotlib.figure.Figure``
+        The figure.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.colors
+    import matplotlib.cm
+
+    if not isinstance(morph, statmorph.SourceMorphology):
+        raise TypeError('Input must be of type SourceMorphology.')
+
+    assert morph.flag_catastrophic == 0  # some cases are not even worth plotting
+
+    # I'm tired of dealing with plt.add_subplot, plt.subplots, plg.GridSpec,
+    # plt.subplot2grid, etc. and never getting the vertical and horizontal
+    # inter-panel spacings to have the same size, so instead let's do
+    # everything manually:
+    nrows = 2
+    ncols = 4
+    wpanel = 4.0  # panel width
+    hpanel = 4.0  # panel height
+    htop = 0.05*nrows*hpanel  # top margin and vertical space between panels
+    eps = 0.005*nrows*hpanel  # all other margins
+    wfig = ncols*wpanel + (ncols+1)*eps  # total figure width
+    hfig = nrows*(hpanel+htop) + eps  # total figure height
+    fig = plt.figure(figsize=(wfig, hfig))
+
+    # For drawing circles/ellipses
+    theta_vec = np.linspace(0.0, 2.0*np.pi, 200)
+
+    # Add black to pastel colormap
+    cmap_orig = matplotlib.cm.Pastel1
+    colors = ((0.0, 0.0, 0.0), *cmap_orig.colors)
+    cmap = matplotlib.colors.ListedColormap(colors)
+
+    # Get some general info about the image
+    image = np.float64(morph._cutout_stamp_maskzeroed)  # skimage wants double
+    ny, nx = image.shape
+    xc, yc = morph._xc_stamp, morph._yc_stamp  # centroid
+    xca, yca = morph._asymmetry_center  # asym. center
+    xcs, ycs = morph._sersic_model.x_0.value, morph._sersic_model.y_0.value  # Sersic center
+
+    ##################
+    # Original image #
+    ##################
+    ax = _get_ax(fig, 0, 0, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    ax.imshow(image, cmap='gray', origin='lower',
+              norm=simple_norm(image, stretch='log', log_a=10000))
+    ax.plot(xc, yc, 'go', markersize=5, label='Centroid')
+    R = np.sqrt(nx**2 + ny**2)
+    theta = morph.orientation_centroid
+    x0, x1 = xc - R*np.cos(theta), xc + R*np.cos(theta)
+    y0, y1 = yc - R*np.sin(theta), yc + R*np.sin(theta)
+    ax.plot([x0, x1], [y0, y1], 'g--', lw=1.5, label='Major Axis (Centroid)')
+    ax.plot(xca, yca, 'bo', markersize=5, label='Asym. Center')
+    R = np.sqrt(nx**2 + ny**2)
+    theta = morph.orientation_asymmetry
+    x0, x1 = xca - R*np.cos(theta), xca + R*np.cos(theta)
+    y0, y1 = yca - R*np.sin(theta), yca + R*np.sin(theta)
+    ax.plot([x0, x1], [y0, y1], 'b--', lw=1.5, label='Major Axis (Asym.)')
+    # Half-radius ellipse
+    a = morph.rhalf_ellip
+    b = a / morph.elongation_asymmetry
+    theta = morph.orientation_asymmetry
+    xprime, yprime = a*np.cos(theta_vec), b*np.sin(theta_vec)
+    x = xca + (xprime*np.cos(theta) - yprime*np.sin(theta))
+    y = yca + (xprime*np.sin(theta) + yprime*np.cos(theta))
+    ax.plot(x, y, 'b', label='Half-Light Ellipse')
+    # Some text
+    text = 'flag = %d\nEllip. (Centroid) = %.4f\nEllip. (Asym.) = %.4f' % (
+        morph.flag, morph.ellipticity_centroid, morph.ellipticity_asymmetry)
+    ax.text(0.034, 0.966, text,
+            horizontalalignment='left', verticalalignment='top',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    # Finish plot
+    ax.legend(loc=4, fontsize=12, facecolor='w', framealpha=1.0, edgecolor='k')
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.set_title('Original Image (Log Stretch)', fontsize=14)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ##############
+    # Sersic fit #
+    ##############
+    ax = _get_ax(fig, 0, 1, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    y, x = np.mgrid[0:ny, 0:nx]
+    sersic_model = morph._sersic_model(x, y)
+    # Add background noise (for realism)
+    if morph.sky_sigma > 0:
+        sersic_model += np.random.normal(scale=morph.sky_sigma, size=(ny, nx))
+    ax.imshow(sersic_model, cmap='gray', origin='lower',
+              norm=simple_norm(image, stretch='log', log_a=10000))
+    ax.plot(xcs, ycs, 'ro', markersize=5, label='Sérsic Center')
+    R = np.sqrt(nx**2 + ny**2)
+    theta = morph.sersic_theta
+    x0, x1 = xcs - R*np.cos(theta), xcs + R*np.cos(theta)
+    y0, y1 = ycs - R*np.sin(theta), ycs + R*np.sin(theta)
+    ax.plot([x0, x1], [y0, y1], 'r--', lw=1.5, label='Major Axis (Sérsic)')
+    # Half-radius ellipse
+    a = morph.sersic_rhalf
+    b = a * (1.0 - morph.sersic_ellip)
+    xprime, yprime = a*np.cos(theta_vec), b*np.sin(theta_vec)
+    x = xcs + (xprime*np.cos(theta) - yprime*np.sin(theta))
+    y = ycs + (xprime*np.sin(theta) + yprime*np.cos(theta))
+    ax.plot(x, y, 'r', label='Half-Light Ellipse (Sérsic)')
+    # Some text
+    text = ('flag_sersic = %d' % (morph.flag_sersic,) + '\n' +
+            'Ellip. (Sérsic) = %.4f' % (morph.sersic_ellip,) + '\n' +
+            r'$n = %.4f$' % (morph.sersic_n,))
+    ax.text(0.034, 0.966, text,
+            horizontalalignment='left', verticalalignment='top',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    # Finish plot
+    ax.legend(loc=4, fontsize=12, facecolor='w', framealpha=1.0, edgecolor='k')
+    ax.set_title('Sérsic Model + Noise', fontsize=14)
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ###################
+    # Sersic residual #
+    ###################
+    ax = _get_ax(fig, 0, 2, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    y, x = np.mgrid[0:ny, 0:nx]
+    sersic_res = morph._cutout_stamp_maskzeroed - morph._sersic_model(x, y)
+    sersic_res[morph._mask_stamp] = 0.0
+    ax.imshow(sersic_res, cmap='gray', origin='lower',
+              norm=simple_norm(sersic_res, stretch='linear'))
+    ax.set_title('Sérsic Residual, ' + r'$I - I_{\rm model}$', fontsize=14)
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ######################
+    # Asymmetry residual #
+    ######################
+    ax = _get_ax(fig, 0, 3, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    # Rotate image around asym. center
+    # (note that skimage expects pixel positions at lower-left corners)
+    image_180 = skimage.transform.rotate(image, 180.0, center=(xca, yca))
+    image_res = image - image_180
+    # Apply symmetric mask
+    mask = morph._mask_stamp.copy()
+    mask_180 = skimage.transform.rotate(mask, 180.0, center=(xca, yca))
+    mask_180 = mask_180 >= 0.5  # convert back to bool
+    mask_symmetric = mask | mask_180
+    image_res = np.where(~mask_symmetric, image_res, 0.0)
+    ax.imshow(image_res, cmap='gray', origin='lower',
+              norm=simple_norm(image_res, stretch='linear'))
+    ax.set_title('Asymmetry Residual, ' + r'$I - I_{180}$', fontsize=14)
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ###################
+    # Original segmap #
+    ###################
+    ax = _get_ax(fig, 1, 0, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    ax.imshow(image, cmap='gray', origin='lower',
+              norm=simple_norm(image, stretch='log', log_a=10000))
+    # Show original segmap
+    contour_levels = [0.5]
+    contour_colors = [(0, 0, 0)]
+    segmap_stamp = morph._segmap.data[morph._slice_stamp]
+    Z = np.float64(segmap_stamp == morph.label)
+    ax.contour(Z, contour_levels, colors=contour_colors, linewidths=1.5)
+    # Show skybox
+    xmin = morph._slice_skybox[1].start
+    ymin = morph._slice_skybox[0].start
+    xmax = morph._slice_skybox[1].stop - 1
+    ymax = morph._slice_skybox[0].stop - 1
+    ax.plot(np.array([xmin, xmax, xmax, xmin, xmin]),
+            np.array([ymin, ymin, ymax, ymax, ymin]),
+            'b', lw=1.5, label='Skybox')
+    # Some text
+    text = ('Sky Mean = %.4e' % (morph.sky_mean,) + '\n' +
+            'Sky Median = %.4e' % (morph.sky_median,) + '\n' +
+            'Sky Sigma = %.4e' % (morph.sky_sigma,))
+    ax.text(0.034, 0.966, text,
+            horizontalalignment='left', verticalalignment='top',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    # Finish plot
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.legend(loc=4, fontsize=12, facecolor='w', framealpha=1.0, edgecolor='k')
+    ax.set_title('Original Segmap', fontsize=14)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ###############
+    # Gini segmap #
+    ###############
+    ax = _get_ax(fig, 1, 1, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    ax.imshow(image, cmap='gray', origin='lower',
+              norm=simple_norm(image, stretch='log', log_a=10000))
+    # Show Gini segmap
+    contour_levels = [0.5]
+    contour_colors = [(0, 0, 0)]
+    Z = np.float64(morph._segmap_gini)
+    ax.contour(Z, contour_levels, colors=contour_colors, linewidths=1.5)
+    # Some text
+    text = r'$\left\langle {\rm S/N} \right\rangle = %.4f$' % (morph.sn_per_pixel,)
+    ax.text(0.034, 0.966, text, fontsize=12,
+            horizontalalignment='left', verticalalignment='top',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    text = (r'$G = %.4f$' % (morph.gini,) + '\n' +
+            r'$M_{20} = %.4f$' % (morph.m20,) + '\n' +
+            r'$F(G, M_{20}) = %.4f$' % (morph.gini_m20_bulge,) + '\n' +
+            r'$S(G, M_{20}) = %.4f$' % (morph.gini_m20_merger,))
+    ax.text(0.034, 0.034, text, fontsize=12,
+            horizontalalignment='left', verticalalignment='bottom',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    text = (r'$C = %.4f$' % (morph.concentration,) + '\n' +
+            r'$A = %.4f$' % (morph.asymmetry,) + '\n' +
+            r'$S = %.4f$' % (morph.smoothness,))
+    ax.text(0.966, 0.034, text, fontsize=12,
+            horizontalalignment='right', verticalalignment='bottom',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    # Finish plot
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.set_title('Gini Segmap', fontsize=14)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ####################
+    # Watershed segmap #
+    ####################
+    ax = _get_ax(fig, 1, 2, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    labeled_array, peak_labels, xpeak, ypeak = morph._watershed_mid
+    labeled_array_plot = (labeled_array % (cmap.N-1)) + 1
+    labeled_array_plot[labeled_array == 0] = 0.0  # background is black
+    ax.imshow(labeled_array_plot, cmap=cmap, origin='lower',
+              norm=matplotlib.colors.NoNorm())
+    sorted_flux_sums, sorted_xpeak, sorted_ypeak = morph._intensity_sums
+    if len(sorted_flux_sums) > 0:
+        ax.plot(sorted_xpeak[0], sorted_ypeak[0], 'bo', markersize=2,
+                label='First Peak')
+    if len(sorted_flux_sums) > 1:
+        ax.plot(sorted_xpeak[1], sorted_ypeak[1], 'ro', markersize=2,
+                label='Second Peak')
+    # Some text
+    text = (r'$M = %.4f$' % (morph.multimode,) + '\n' +
+            r'$I = %.4f$' % (morph.intensity,) + '\n' +
+            r'$D = %.4f$' % (morph.deviation,))
+    ax.text(0.034, 0.034, text, fontsize=12,
+            horizontalalignment='left', verticalalignment='bottom',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    ax.legend(loc=4, fontsize=12, facecolor='w', framealpha=1.0, edgecolor='k')
+    ax.set_title('Watershed Segmap (' + r'$I$' + ' statistic)', fontsize=14)
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    ##########################
+    # Shape asymmetry segmap #
+    ##########################
+    ax = _get_ax(fig, 1, 3, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
+    ax.imshow(morph._segmap_shape_asym, cmap='gray', origin='lower')
+    ax.plot(xca, yca, 'bo', markersize=5, label='Asym. Center')
+    r = morph.rpetro_circ
+    ax.plot(xca + r*np.cos(theta_vec), yca + r*np.sin(theta_vec), 'b',
+            label=r'$r_{\rm petro, circ}$')
+    r = morph.rpetro_ellip
+    ax.plot(xca + r*np.cos(theta_vec), yca + r*np.sin(theta_vec), 'r',
+            label=r'$r_{\rm petro, ellip}$')
+    r = morph.rmax_circ
+    ax.plot(xca + r*np.cos(theta_vec),
+            yca + r*np.sin(theta_vec),
+            'c', lw=1.5, label=r'$r_{\rm max}$')
+    text = (r'$A_S = %.4f$' % (morph.shape_asymmetry,))
+    ax.text(0.034, 0.034, text, fontsize=12,
+            horizontalalignment='left', verticalalignment='bottom',
+            transform=ax.transAxes,
+            bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+    ax.legend(loc=4, fontsize=12, facecolor='w', framealpha=1.0, edgecolor='k')
+    ax.set_xlim(-0.5, nx-0.5)
+    ax.set_ylim(-0.5, ny-0.5)
+    ax.set_title('Shape Asymmetry Segmap', fontsize=14)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    fig.subplots_adjust(left=eps/wfig, right=1-eps/wfig, bottom=eps/hfig,
+                        top=1.0-htop/hfig, wspace=eps/wfig, hspace=htop/hfig)
+
+    return fig
+
+def make_figure_mine(morph):
     """                                                                                                              \
                                                                                                                       
     Creates a figure analogous to Fig. 4 from Rodriguez-Gomez et al. (2018)                                          \
@@ -440,7 +765,7 @@ def make_figure(morph):
     colors = ((0.0, 0.0, 0.0), cmap_orig.colors)
     cmap = matplotlib.colors.ListedColormap(colors)
 
-    log_stretch = LogStretch(a=10000.0)
+
 
     # Get some general info about the image                                                                                                                    \
                                                                                                                                                                 
@@ -449,7 +774,7 @@ def make_figure(morph):
     ny, nx = image.shape
     m = np.min(image)
     M = np.max(image)
-    m_stretch, M_stretch = log_stretch([m, M])
+
     xc, yc = morph._xc_stamp, morph._yc_stamp  # centroid                                                                                                      \
                                                                                                                                                                 
     xca, yca = morph._asymmetry_center  # asym. centroid                                                                                                       \
@@ -462,8 +787,8 @@ def make_figure(morph):
     ##################                                                                                                                                         \
                                                                                                                                                                 
     ax = get_ax(fig, 0, 0, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
-    ax.imshow(log_stretch(normalize(image, m=m, M=M)), cmap='gray', origin='lower',
-              vmin=m_stretch, vmax=M_stretch)
+    ax.imshow(image, cmap='gray', origin='lower',
+              norm=simple_norm(image, stretch='log', log_a=10000))
     ax.plot(xc, yc, 'go', markersize=5, label='Centroid')
     R = float(nx**2 + ny**2)
     theta = morph.orientation_centroid
@@ -514,8 +839,9 @@ def make_figure(morph):
                                                                                                                                                                 
     if morph.sky_sigma > 0:
         sersic_model += np.random.normal(scale=morph.sky_sigma, size=(ny, nx))
-    ax.imshow(log_stretch(normalize(sersic_model, m=m, M=M)), cmap='gray', origin='lower',
-              vmin=m_stretch, vmax=M_stretch)
+    ax.imshow(sersic_model, cmap='gray', origin='lower',
+             norm=simple_norm(sersic_model, stretch='log', log_a=10000))
+    
     # Sersic center (within postage stamp)                                                                                                                     \
                                                                                                                                                                 
     xcs, ycs = morph._sersic_model.x_0.value, morph._sersic_model.y_0.value
@@ -598,8 +924,7 @@ def make_figure(morph):
     ###################                                                                                                                                        \
                                                                                                                                                                 
     ax = get_ax(fig, 1, 0, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
-    ax.imshow(log_stretch(normalize(image, m=m, M=M)), cmap='gray', origin='lower',
-              vmin=m_stretch, vmax=M_stretch)
+    ax.imshow(image, cmap='gray', origin='lower',norm=simple_norm(image, stretch='log', log_a=10000))
     # Show original segmap                                                                                                                                     \
                                                                                                                                                                 
     contour_levels = [0.5]
@@ -640,8 +965,8 @@ def make_figure(morph):
     ###############                                                                                                                                            \
                                                                                                                                                                 
     ax = get_ax(fig, 1, 1, nrows, ncols, wpanel, hpanel, htop, eps, wfig, hfig)
-    ax.imshow(log_stretch(normalize(image, m=m, M=M)),
-              cmap='gray', origin='lower', vmin=m_stretch, vmax=M_stretch)
+    ax.imshow(image,
+              cmap='gray', origin='lower', norm=simple_norm(image, stretch='log', log_a=10000))
     # Show Gini segmap                                                                                                                                         \
                                                                                                                                                                 
     contour_levels = [0.5]
@@ -1085,43 +1410,17 @@ Calls galfit with the feedme file you created                                   
 '''
 
 def run_galfit(name, prefix):
-
-    #print('running galfit from w/i galfit folder', os.getcwd())                                                                                               \
-                                                                                                                                                                
-    #call ="./galfit "+prefix+"imaging/"+"galfit.feedme_"+str(name)#+">/dev/null 2>&1"                                                                          
-    #os.chdir('/n/home03/rnevin/parallel_SDSS_computing')                                                                                                       
-    print('this is the call from ', os.getcwd())
-    print("./galfit "+prefix+"imaging/"+"galfit.feedme_"+str(name))
-    #os.system("./galfit "+prefix+"imaging/"+"galfit.feedme_"+str(name)) --> this runs with output                                                              
-
-
-    call = "./galfit "+prefix+"imaging/"+"galfit.feedme_"+str(name)
     command =["galfit",prefix+"imaging/galfit.feedme_"+str(name)]
     # removed the ./ from before galfit                                                                                                                         
-
-
-
     with open(os.devnull, "w") as fnull:
         result = subprocess.call(command, stdout = fnull, stderr = fnull)
-    ##subprocess.check_output(shlex.split(call), shell=True)                                                                                                   \
-                                                                                                                                                                
-    #subprocess.call(shlex.join(call),shell=True)                                                                                                               
-    #subprocess.call(shlex.split(call),stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)                                                                    
 
-    #process = subprocess.Popen(call, stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)                                                                
-    #stdout, stderr = process.communicate()                                                                                                                     
-
-
-    #os.system("galfit "+prefix+"imaging/galfit.feedme_"+str(name))#+">/dev/null 2>&1")                                                                        \
-                                                                                                                                                                
-    #os.chdir(home)                                                                                                                                             
     return
-'''Now open the galfit result and get the effective radius                                                                                                     \
-                                                                                                                                                                
+'''Now open the galfit result and get the effective radius                                                                                                                                                                                                                                                         
 I've kept a lot of unnecessary stuff in here in case you want to                                                                                               \
                                                                                                                                                                 
 use additional pieces of the output; this code is generally                                                                                                    \
-                                                                                                                                                                
+                                                                                                                          
 very useful for running galfit inline and extracting the output info'''
 def galfit_params(name,num_bulges, prefix):
 
