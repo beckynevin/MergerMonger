@@ -1,6 +1,6 @@
-## MergerMonger
+## MergerMonger <img src="images_for_github/mongoose.png" alt="goose" width="200">
 # A suite of tools for identifying different types of mergers in SDSS imaging
-Based on the imaging classification presented in Nevin+2019 and Nevin+2022.
+Based on the imaging classification presented in <a href="https://arxiv.org/abs/1901.01975">Nevin+2019</a> and Nevin+2022.
 
 There are three main steps: 1) Creating the classification from simulations of merging galaxies, 2) Measuring predictor values from images of galaxies, and 3) Classifying galaxies and obtaining probability values using the output from steps 1 and 2.
 
