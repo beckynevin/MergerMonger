@@ -150,16 +150,20 @@ The final step is to apply the LDA classification derived in step #1 to the pred
 Code example of how to generate the output probability tables (.txt) are provided in classify_SDSS.py. Here's a snippet:
 
 ```
-from MergerMonger import load_LDA_from_simulation, classify, classify_from_flagged
-import numpy as np
+from MergerMonger import classify
 
 # After running step #1:
 LDA, p_merg, CDF = classify('../Tables/','../frames/',type_gal, run, LDA, RFR, df, 10000, verbose=True, all = False, cut_flagged = True)
-# The classify utility in MergerMonger.py loads up the predictor value table (SDSS_predictors_all.txt), standardizes all values, plugs them into the LD1 formula for a given classification, and saves an LDA table (LDA_out_all_SDSS_predictors....txt) with the LD1 and probability values.
+# The classify utility in MergerMonger.py loads up the predictor value table (SDSS_predictors_all.txt), 
+# standardizes all values, 
+# plugs them into the LD1 formula for a given classification, 
+# and saves an LDA table (LDA_out_all_SDSS_predictors....txt) with the LD1 and probability values.
 
 ```
 
-I also include some utilities for interpreting these probability values using the CDF of the full population.
+I also include some utilities for interpreting these probability values using the CDF of the full population. compare_pmerg_to_full_population_CDF.py does this by importing the saved LDA table and constructing an CDF from all of the p_merg values. This code can then be used to find the p_merg value that would correspond to some point on the CDF (i.e., when 10% of the full population has a higher p_merg value). It can also of course be used to find the CDF value for a given p_merg value to compare a given galaxy's probability to the full SDSS population.
+
+
 
 ## Dependencies
 

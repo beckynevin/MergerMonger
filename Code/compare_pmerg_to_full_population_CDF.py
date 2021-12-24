@@ -20,15 +20,14 @@ import os
 import scipy
 import scipy.stats
 
-type_gal = 'predictors'
 # Input the merger classification name
-merger_type = 'major_merger'
+merger_type = 'minor_merger'
 # Prefix where the LDA and probability tables are saved 
 prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger/Tables/'
 
 
 # Step 1: import the probability values for these galaxies
-df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_'+str(type_gal)+'_'+str(merger_type)+'.txt', sep='\t')
+df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'.txt', sep='\t')
 
 # Extract the probability values from this table
 p_vals = df_LDA['p_merg'].values
@@ -49,7 +48,10 @@ for p in p_list:
     cdf_list.append(hist_dist.cdf(p))
     print('CDF value is ', hist_dist.cdf(p),' when p_merg = ', p)
 
-# Define the xs of this distribution
+# In order to back out the p_merg values that correspond to a given point on the CDF curve,
+# it is necessary to make a non-linear transformation of the xs, or p_merg values:
+# This is because you're moving faster along the CDF distribution when you're at very high or very low
+# p values
 
 X_lin = np.linspace(-100,100,10000)
 X = [1/(1+np.exp(-x)) for x in X_lin]# transform into logit space
@@ -73,16 +75,16 @@ print('p_merg value is ', X_non, 'when ',val_non,' of the full population has a 
 print('p_merg value is ', X_merg, 'when ',1-val_merg,' of the full population has a higher p_merg value')
 
 
-# Can you simply find the p_merg values versus cdf and then plot?
-plt.scatter(X, cdf_val)
-plt.xlabel('p?')
+# Visualize this relationship:
+plt.scatter(X, cdf_val, s=0.1)
+plt.xlabel('p_merg')
 plt.ylabel('CDF')
 plt.show()
 
 
 
 
-# Put this into a loop:
+# Put this into a loop to find a bunch of p_merg values that correspond to different cdf points:
 cdf_percent = np.linspace(0.01, 0.99, 100)
 
 cdf_percent = [0.01,0.05,0.1,0.25, 0.5, 0.75, 0.9,0.95,0.99]
@@ -96,8 +98,9 @@ for percent in cdf_percent:
 plt.clf()
 plt.title("p_merg distribution and CDF")
 plt.hist(p_vals, bins=100)# Here its nice to bin up a little more
-#plt.plot(X, hist_dist.pdf(X), label='PDF')
-#plt.plot(X, hist_dist.cdf(X), label='CDF')
+plt.plot(X, hist_dist.pdf(X), label='PDF')
+# scale the cdf by the number of galaxies so you can see it on the same plot
+#plt.plot(X, hist_dist.cdf(X)*len(p_vals)/2, label='CDF')
 plt.legend()
 #plt.axvline(x=X_non, color='red') # vertical line for thresholds
 #plt.axvline(x=X_merg, color='red')
@@ -109,5 +112,6 @@ plt.legend()
 #for i in range(len(p_list)):
 
 #    plt.annotate('cdf = '+str(round(cdf_list[i],4)), xy=(p_list[i],cdf_list[i]+0.15), xycoords='data', color='red')
+plt.legend()
 plt.show()
 
