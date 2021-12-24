@@ -1,6 +1,8 @@
-### Source Extractor and Galfit
-Installation and use instructions:
+This folder is used if you end up running step #2, which involves measuring predictor values, which involves downloading frame images and saving files to this folder.
 
+Galfit, source extractor, and statmorph will all run using images saved in this folder.
+
+### Installing Source Extractor and Galfit
 To install source extractor, I used:
 
 ```
