@@ -1,4 +1,4 @@
-## MergerMonger <img src="images_for_github/mongoose.png" alt="goose" width="100">
+## MergerMonger <img src="images_for_github/mergermonger_logo.png" alt="goose" width="100">
 # A suite of tools for identifying different types of mergers in SDSS imaging
 Based on the imaging classification presented in <a href="https://arxiv.org/abs/1901.01975">Nevin+2019</a> and Nevin+2022.
 
@@ -168,7 +168,7 @@ I also include some utilities for interpreting these probability values using th
 ## Dependencies
 
 You must have this stuff installed and updated for everything to run smoothly:
-1) Galfit
+1) Galfit (directions for installing Galfit and Source Extractor are provided in the imaging/ folder)
 2) Source Extractor
 3) Statmorph
 4) wget
