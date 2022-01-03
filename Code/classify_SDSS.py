@@ -15,7 +15,7 @@ run = 'major_merger'
 
 print(str(os.getcwd())+'../frames/')
 
-LDA,RFR, df = load_LDA_from_simulation(run,str(os.getcwd())+'../frames/', type_gal = 'predictors',name='img',verbose=False)
+LDA,RFR, df = load_LDA_from_simulation(run,verbose=False)
 
 
 
@@ -69,7 +69,7 @@ plt.show()
 type_gal = 'predictors'
 verbose='yes'
 
-LDA, p_merg, CDF = classify_from_flagged('../Tables/','../frames/',type_gal, run, LDA, RFR, df, 10000, verbose=True, all = False, cut_flagged = True)
+LDA, p_merg, CDF = classify_from_flagged('../Tables/','../frames/', run, LDA, RFR, df, 10000, verbose=True, all = False, cut_flagged = True)
 
 #LDA, p_merg, CDF = classify('../Tables/','../frames',type_gal, run, LDA, RFR, df, verbose=False)
     
