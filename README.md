@@ -1,4 +1,4 @@
-## MergerMonger <img src="images_for_github/mergermonger_logo.png" alt="goose" width="300">
+<img src="images_for_github/mergermonger_logo.png" alt="goose" width="300">
 # A suite of tools for identifying different types of mergers in SDSS imaging
 Based on the imaging classification presented in <a href="https://arxiv.org/abs/1901.01975">Nevin+2019</a> and Nevin+2022.
 
