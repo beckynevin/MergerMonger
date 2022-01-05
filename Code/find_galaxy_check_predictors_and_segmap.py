@@ -266,7 +266,7 @@ for i in range(len(ID_list)):
                 fig = plt.figure()
                 ax1 = fig.add_subplot(121)
                 im1 = ax1.imshow(abs(np.fliplr(np.rot90(preds[0]))), norm=matplotlib.colors.LogNorm())#, origin = 'lower'
-                ax1.set_title('Image, flag = '+str(flag_name))
+                ax1.set_title('Image, flag = \n'+str(flag_name))
                 ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][3],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][4],4))+'\nCDF = '+str(round(cdf,4))+'\n'+str(df_LDA.values[where_LDA][0][6]), 
                     xy=(0.03, 0.7),  xycoords='axes fraction',
                 xytext=(0.03, 0.7), textcoords='axes fraction',
@@ -281,7 +281,13 @@ for i in range(len(ID_list)):
                 im2 = ax2.imshow(np.fliplr(np.rot90(preds[1])))
                 ax2.scatter(np.shape(segmap)[0]/2,np.shape(segmap)[0]/2, color='red')
                 ax2.set_title('Segmap, <S/N> = '+str(round(preds[10],2)))
-                ax2.annotate('Gini = '+str(round(df_predictors.values[where_predictors][2],2))+' M20 = '+str(round(df_predictors.values[where_predictors][3],2))+'\nC = '+str(round(df_predictors.values[where_predictors][4],2))+'\nA = '+str(round(df_predictors.values[where_predictors][5],2))+'\nS = '+str(round(df_predictors.values[where_predictors][6],2))+'\nn = '+str(round(df_predictors.values[where_predictors][7],2))+'\nA_S = '+str(round(df_predictors.values[where_predictors][8],2)), 
+                ax2.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
+                    ' M20 = '+str(round(df_predictors.values[where_predictors][4],2))+
+                    '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+
+                    '\nA = '+str(round(df_predictors.values[where_predictors][6],2))+
+                    '\nS = '+str(round(df_predictors.values[where_predictors][7],2))+
+                    '\nn = '+str(round(df_predictors.values[where_predictors][8],2))+
+                    '\nA_S = '+str(round(df_predictors.values[where_predictors][9],2)), 
                     xy=(0.03, 0.55),  xycoords='axes fraction',
                 xytext=(0.03, 0.55), textcoords='axes fraction',
                 bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')

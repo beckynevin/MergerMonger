@@ -9,15 +9,17 @@ import astropy.io.fits as fits
 import pandas as pd
 from astropy.table import Table
 import matplotlib.pyplot as plt
+import matplotlib
 import seaborn as sns
-
+from util_SDSS import SDSS_objid_to_values, download_galaxy
+from util_smelter import get_predictors
 # path
-dir = '/Users/beckynevin/CfA_Code/MergerMonger/Tables/'
+dir = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger/Tables/'
 
 type_gal = 'DR12_predictors_MPI'
 
 # first, open everything that was already in the table
-df_classified = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/SDSS_'+str(type_gal)+'_all.txt',header=[0],sep='\t')
+df_classified = pd.io.parsers.read_csv(filepath_or_buffer='/Users/rebeccanevin/Documents/Cannon_parallel/SDSS_'+str(type_gal)+'_all.txt',header=[0],sep='\t')
 
 df_classified.columns = ['ID','Sep','Flux Ratio',  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
 
@@ -63,7 +65,7 @@ print('length after dropping dups', len(df_all))
 # Great, but how many are lost in the fails file and why do these fail?
 
 # The fails are stored somewhere different, first get the fails from the original run, then get the selection_2 fails
-prefix = '/Users/beckynevin/CfA_Code/Cannon/parallel_SDSS/'
+prefix = '/Users/rebeccanevin/Documents/Cannon_parallel/'
 type_gal = 'DR12_predictors_MPI'
 df_fails_0 = pd.io.parsers.read_csv(prefix+'SDSS_'+str(type_gal)+'_fails_0.txt', sep='\t',dtype={'ID':str})
 df_fails_0.columns = ['ID','Reason']
@@ -133,5 +135,3 @@ double_keep_fails['Reason'].value_counts().plot(kind='bar')
 plt.tight_layout()
 plt.show()
 
-
-STOP

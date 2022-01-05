@@ -22,7 +22,7 @@ for file in files:
 	#print(file)
 	if str(type_gal+'_') in file:
 		if flag:
-			if 'flag' in str.split(str.split(file,type_gal+'_')[1],'.txt')[0]:
+			if 'flag.' in str.split(str.split(file,type_gal+'_')[1],'txt')[0]:
 				run_these.append(float(str.split(str.split(str.split(file,type_gal+'_')[1],'.txt')[0],'_flag')[0]))
 		else:
 			if 'flag' in str.split(str.split(file,type_gal+'_')[1],'.txt')[0]:
