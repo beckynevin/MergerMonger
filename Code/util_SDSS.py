@@ -28,8 +28,7 @@ def download_galaxy(ID, ra, dec, prefix_frames, size, remove=True):
    else:
        pref_field = '00'
    
-   
-   name = prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits'
+   name = prefix_frames+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits'
 
    
    os.system('wget -O '+str(prefix_frames)+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2  https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
@@ -37,8 +36,15 @@ def download_galaxy(ID, ra, dec, prefix_frames, size, remove=True):
    
 
    os.system('bunzip2 '+str(prefix_frames)+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+   try:
+        im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
+   except FileNotFoundError:
+        # Try removing it and restarting:
+        os.system('rm '+prefix_frames+'frame*')
+        os.system('wget -O '+str(prefix_frames)+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2  https://data.sdss.org/sas/dr12/boss/photoObj/frames/301/'+str(decode[2])+'/'+str(decode[3])+'/frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+        os.system('bunzip2 '+str(prefix_frames)+'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits.bz2')
+        im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
 
-   im=fits.open(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
    print('trying to open this')
    print(prefix_frames + 'frame-r-'+pref_run+str(decode[2])+'-'+str(decode[3])+'-'+pref_field+str(decode[4])+'.fits')
    
@@ -178,7 +184,7 @@ def plot_individual(id, ra, dec, prob, run, prefix_frames):
     ax0.axis('off')
     
     
-    plt.savefig('/Users/beckynevin/CfA_Code/Kinematics_and_Imaging_Merger_Identification/sdss/images/'+str(run)+'/'+str(id)+'_'+str(round(prob,2))+'.png', dpi=200, bbox_inches = 'tight',pad_inches = 0)
+    plt.savefig(prefix_frames+str(run)+'/'+str(id)+'_'+str(round(prob,2))+'.png', dpi=200, bbox_inches = 'tight',pad_inches = 0)
 
 
 

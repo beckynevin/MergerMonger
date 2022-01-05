@@ -29,7 +29,7 @@ from util_LDA import run_LDA, run_RFR, run_RFC, cross_term
 import scipy
 from util_SDSS import plot_individual, download_sdss_ra_dec_table, download_galaxy
 from util_smelter import get_predictors
-
+import random
 from astropy.io import fits
 import os
 import seaborn as sns
@@ -3952,7 +3952,14 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     
     counter = 0
     counter_i = 0
-    for p in range(len(df2)):
+
+    # First, make a list of all indices in df2:
+    #indices = np.linspace(0,len(df2)-1,len(df2))
+
+
+    random_index_list = random.sample(range(len(df2)), len(df2))
+
+    for p in random_index_list:#range(len(df2)):
         if counter_i > 9:
             break
         # go through all bins and find two examples of each
@@ -4012,7 +4019,14 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     
     counter = 0
     counter_i = 0
-    for p in range(len(df2)):
+
+    # First, make a list of all indices in df2:
+    #indices = np.linspace(0,len(df2)-1,len(df2))
+
+
+    random_index_list = random.sample(range(len(df2)), len(df2))
+
+    for p in random_index_list:#range(len(df2)):
         
         if counter_i > 9:
             break
@@ -4058,7 +4072,7 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
             
 
     plt.savefig('../Figures/probability_panel_mergers_high_prob_SDSS_predictors_'+str(run)+'.pdf')
-    STOP
+    
 
     return LD1_SDSS, p_merg_list, hist_dist.cdf(p_merg_list)
 

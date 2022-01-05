@@ -48,9 +48,9 @@ def run_RFR(df_merg, features_list, run, verbose):
     # These are adjustable RFR parameters
     Nfolds = 10
     Ndat = 5000
-
+    
     features = df_merg[features_list].values
-    #,'nspax','re'
+
     Nfeatures = len(features[0])
     
     #dat['features']#.reshape(-1,1)
@@ -61,6 +61,7 @@ def run_RFR(df_merg, features_list, run, verbose):
     #Test on fold 0, train on the remaining folds:
     test_ind, train_ind = testAndTrainIndices(test_fold = 0, Nfolds = Nfolds, folds=folds)
     
+
     #divide features and labels into test and train sets:
     test_features = features[test_ind]
     test_labels   = labels[test_ind]
@@ -70,7 +71,7 @@ def run_RFR(df_merg, features_list, run, verbose):
     if verbose:
         print('training fold 0')
     #make a random forest model:
-    model = RandomForestRegressor(max_depth=10, random_state=42)
+    model = RandomForestRegressor(n_estimators = 100, max_depth=10, random_state=42)
     model.fit(train_features, train_labels)
     if verbose:
         print('predicting...')
@@ -319,7 +320,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
             ct_2.append(input_singular[i])
     
     inputs = input_singular + crossterms
-    
+    print('input terms', inputs)
     # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
     for j in range(len(crossterms)):
         
@@ -347,7 +348,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     list_std_scale=[]
     list_sklearn=[]
     list_mean_non=[]
-    list_diagnostics=[]
+    #list_diagnostics=[]
     
     
     kf = StratifiedKFold(n_splits=5, random_state=True, shuffle=True)
@@ -370,7 +371,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
         std_scale_this_step=[]
         sklearn_this_step=[]
         mean_non_this_step=[]
-        diagnostics_this_step=[]
+        #diagnostics_this_step=[]
         kf_list=[]
         
 
@@ -428,7 +429,6 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
                 y_train, y_CV = y[train_index], y[test_index]
                 
                 
-                
 
                 sklearn_lda = LDA( solver='svd',priors=priors_list,store_covariance=True)#store_covariance=False
                 
@@ -475,8 +475,8 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
             #print('appending with this', np.array(prev_input))
             
             classes_this_step.append(np.array(classes_list))
-    
-            diagnostics_this_step.append(np.array(diagnostic_list))
+            
+            #diagnostics_this_step.append(np.array(diagnostic_list))
             
             coef_mean.append(np.mean(coef_list, axis=0))
             coef_std.append(np.std(coef_list, axis=0))
@@ -557,7 +557,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
         list_classes.append(classes_this_step[accuracy.index(lookup)])
         list_std_scale.append(std_scale_this_step[accuracy.index(lookup)])
 
-        list_diagnostics.append(diagnostics_this_step[accuracy.index(lookup)])
+        #list_diagnostics.append(diagnostics_this_step[accuracy.index(lookup)])
             
         num_comps.append(len(prev_input))#
         
@@ -603,7 +603,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     min_comps=num_comps[new_min_index]
     inputs_all=prev_input_here[new_min_index]#:new_min_index+1]
     
-    diagnostics = list_diagnostics[new_min_index]
+    #diagnostics = list_diagnostics[new_min_index]
     
     
     
@@ -624,9 +624,9 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     
     #print out the first five coeff
     for u in range(len(sortedinput)):
-        print(round(list_coef[new_min_index][0][inds][-u],2),'$\pm$',round(list_coef_std[new_min_index][0][inds][-u],2),' ',sortedinput[-u],' &')
+        print(round(list_coef[new_min_index][0][inds][-u],1),'$\pm$',round(list_coef_std[new_min_index][0][inds][-u],1),' ',sortedinput[-u],' &')
 
-    print(round(float(list_inter[new_min_index][0]),2), '$\pm$', round(float(list_inter_std[new_min_index]),2),'//')
+    print(round(float(list_inter[new_min_index][0]),1), '$\pm$', round(float(list_inter_std[new_min_index]),),'//')
     
     covar = list_covar[new_min_index]
     means_all_classes = list_means[new_min_index]
