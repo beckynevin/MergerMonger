@@ -2758,7 +2758,6 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     p_merg_merg_SDSS = []
     p_merg_nonmerg_SDSS = []
 
-
     
     
 
@@ -2802,33 +2801,41 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
             sorted_terms = terms[arr1inds[::-1]]
             sorted_coeff = coeffs[arr1inds[::-1]]
 
-            
+            most_influential_merg.append(sorted_terms[0])
+            most_influential_merg_c.append(sorted_coeff[0])
+            most_influential_term = sorted_terms[0]
 
-            
+            '''
             most_influential_merg.append([sorted_terms[0],sorted_terms[1],sorted_terms[2]])
             most_influential_merg_c.append([sorted_coeff[0],sorted_coeff[1],sorted_coeff[2]])
+            most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
+            '''
             LDA_merg_SDSS.append(LD1_gal)
             p_merg_merg_SDSS.append(p_merg)
 
-            most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
+            
         else:
             merg = 0
             
-
+            
             # Array to sort:
             arr1inds = coeffs.argsort()
             sorted_terms = terms[arr1inds[::-1]]
             sorted_coeff = coeffs[arr1inds[::-1]]
 
-            
-
+            most_influential_merg.append(sorted_terms[-1])
+            most_influential_merg_c.append(sorted_coeff[-1])
+            most_influential_term = sorted_terms[-1]
+            '''
             
             most_influential_nonmerg.append([sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]])
             most_influential_nonmerg_c.append([sorted_coeff[-1],sorted_coeff[-2],sorted_coeff[-3]])
+            most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+            '''
             LDA_nonmerg_SDSS.append(LD1_gal)
             p_merg_nonmerg_SDSS.append(p_merg)
             
-            most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+            
 
         p_merg_list.append(p_merg)
         most_influential.append(most_influential_term)
@@ -2839,7 +2846,8 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
         testing_A.append(df2['Asymmetry (A)'].values[j])
         testing_n.append(df2['Sersic N'].values[j])
         testing_A_S.append(df2['Shape Asymmetry (A_S)'].values[j])
-    
+
+        
 
 
 
@@ -4114,6 +4122,145 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     
 
     return LD1_SDSS, p_merg_list, hist_dist.cdf(p_merg_list)
+
+
+
+# This is to create a table
+
+def classify_from_flagged_interpretive_table(prefix, prefix_frames, run, LDA, terms_RFR, df, number_run, verbose=False, all=True, cut_flagged = True):
+    #~~~~~~~
+    # Now bring in the SDSS galaxies!
+    #~~~~~~~
+
+    df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_with_flags.txt', sep='\t')
+    
+    if all:
+        pass
+    else:
+        df2 = df2[0:number_run]
+    
+    if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
+        df2 = df2.iloc[: , 1:]
+
+    
+
+    # First, delete all rows that have weird values of n:
+    #print('len before crazy values', len(df2))
+    #df_filtered = df2[df2['Sersic N'] < 10]
+
+    #df_filtered_2 = df_filtered[df_filtered['Asymmetry (A)'] > -1]
+
+    #df2 = df_filtered_2
+
+    # Delete duplicates:
+    if verbose:
+        print('len bf duplicate delete', len(df2))
+    df2_nodup = df2.duplicated()
+    df2 = df2[~df2_nodup]
+    if verbose:
+        print('len af duplicate delete', len(df2))
+        print(df2)
+
+    if cut_flagged:# Then get rid of the entries that are flagged
+        df_keep = df2[(df2['low S/N'] == 0) & (df2['outlier predictor'] == 0) & (df2['segmap']==0)]
+        df2 = df_keep
+        
+
+
+    
+    input_singular = terms_RFR
+    #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
+    crossterms = []
+    ct_1 = []
+    ct_2 = []
+    for j in range(len(input_singular)):
+        for i in range(len(input_singular)):
+            if j == i or i < j:
+                continue
+            #input_singular.append(input_singular[j]+'*'+input_singular[i])
+            crossterms.append(input_singular[j]+'*'+input_singular[i])
+            ct_1.append(input_singular[j])
+            ct_2.append(input_singular[i])
+
+    inputs = input_singular + crossterms
+
+    # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
+    for j in range(len(crossterms)):
+        
+        df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
+        
+
+    X_gal = df2[LDA[2]].values
+
+
+ 
+
+    # Creating table
+    print('making table of LDA output for all galaxies.....')
+    file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flag_leading_preds.txt','w')
+    file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\n')
+    #+'Second_term'+'\t'+'Second_coef'+'\n')
+
+    
+
+    for j in range(len(X_gal)):
+        #print(X_gal[j])
+
+        # this is an array of everything standardized
+        X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
+
+        X_std.append(X_standardized)
+        # use the output from the simulation to assign LD1 value:
+        LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
+        
+        
+        
+        LD1_SDSS.append(LD1_gal)
+        
+        # According to my calculations, LD1 = delta_1 - delta_0 where delta is the score for each class
+        # Therefore, in the probability equation p_merg = e^delta_1/(e^delta_1+e^delta_0)
+        # you can sub in LD1 and instead end up with p_merg = 1/(1+e^-LD1)
+        
+        p_merg = 1/(1 + np.exp(-LD1_gal))
+        p_nonmerg = 1/(1 + np.exp(LD1_gal))
+        
+        coeffs = (X_standardized*LDA[3])[0]
+        terms = LDA[2]
+
+        
+        
+        if LD1_gal > 0:
+            merg = 1
+            # select the coefficient that is the most positive
+            # So the max index is what?
+            # is the max of the standardized array times all the coefficients, so what has the largest positive value?
+            # this just gives you the index to search, if selected from LDA[2] gives you the name of that term
+            # and if selected from the lda[3]*x_standardized gives the additive value of this
+            
+            
+            # Array to sort:
+            arr1inds = coeffs.argsort()
+            sorted_terms = terms[arr1inds[::-1]]
+            sorted_coeff = coeffs[arr1inds[::-1]]
+
+
+            most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
+        else:
+            merg = 0
+            
+
+            # Array to sort:
+            arr1inds = coeffs.argsort()
+            sorted_terms = terms[arr1inds[::-1]]
+            sorted_coeff = coeffs[arr1inds[::-1]]
+            
+            most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+
+        file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'
+            +most_influential_term+'\t'+str(most_influential_coeff)+'\t'+str(df2[['low S/N']].values[j][0])+'\t'+str(df2[['outlier predictor']].values[j][0])+'\n')
+        
+    file_out.close()
+    return
 
 def classify_changing_priors_flag(prefix, prefix_frames, run, LDA, terms_RFR, df, priors, number_run, verbose=False, run_all=True):
     #~~~~~~~
