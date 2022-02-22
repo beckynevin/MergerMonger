@@ -167,8 +167,9 @@ _S)','random']
         else:
             myr.append(df[['Myr']].values[j][0])
 
-    print('myr that are considered merging', sorted(set(myr)))
-    print('myr that are nonmerging', sorted(set(myr_non)))
+    if verbose:
+        print('myr that are considered merging', sorted(set(myr)))
+        print('myr that are nonmerging', sorted(set(myr_non)))
     len_nonmerg = len(myr_non)
     len_merg = len(myr)
 
@@ -601,7 +602,8 @@ def load_LDA_from_simulation(run, verbose=True, plot=True):
 
     df.dropna(how="all", inplace=True) # to drop the empty line at file-end
     df.dropna(inplace=True) # to drop the empty line at file-end
-    print(df['class label'].value_counts())
+    if verbose:
+        print(df['class label'].value_counts())
     myr=[]
     myr_non=[]
     for j in range(len(df)):
@@ -609,9 +611,9 @@ def load_LDA_from_simulation(run, verbose=True, plot=True):
             myr_non.append(df[['Myr']].values[j][0])
         else:
             myr.append(df[['Myr']].values[j][0])
-
-    print('myr that are considered merging', sorted(set(myr)))
-    print('myr that are nonmerging', sorted(set(myr_non)))
+    if verbose:
+        print('myr that are considered merging', sorted(set(myr)))
+        print('myr that are nonmerging', sorted(set(myr_non)))
 
 
     len_nonmerg = len(myr_non)
@@ -775,8 +777,8 @@ def classify(prefix, prefix_frames, run, LDA, terms_RFR, df, verbose=False):
     #~~~~~~~
     # Now bring in the SDSS galaxies!
     #~~~~~~~
-
-    print('loading up predictor value table........')
+    if verbose:
+        print('loading up predictor value table........')
     df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_all.txt', sep='\t')
     
 
@@ -796,10 +798,12 @@ def classify(prefix, prefix_frames, run, LDA, terms_RFR, df, verbose=False):
     #df2 = df_filtered_2
 
     # Delete duplicates:
-    print('len bf duplicate delete', len(df2))
+    if verbose:
+        print('len bf duplicate delete', len(df2))
     df2_nodup = df2.duplicated()
     df2 = df2[~df2_nodup]
-    print('len af duplicate delete', len(df2))
+    if verbose:
+        print('len af duplicate delete', len(df2))
 
 
 
@@ -861,17 +865,19 @@ def classify(prefix, prefix_frames, run, LDA, terms_RFR, df, verbose=False):
             STOP
 
 
-    
-    print('this is what its hanging on', prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'.txt')
+    if verbose:
+        print('this is what its hanging on', prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'.txt')
     exists = 0
     if path.exists(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'.txt'):
         exists = 1
-        print('Table already exists')
+        if verbose:
+            print('Table already exists')
     else:
-	# Make a table with merger probabilities and other diagnostics:
-    	print('making table of LDA output for all galaxies.....')
-    	file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'.txt','w')
-    	file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
+	   # Make a table with merger probabilities and other diagnostics:
+        if verbose:
+        	print('making table of LDA output for all galaxies.....')
+        file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'.txt','w')
+        file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\n')
     	#+'Second_term'+'\t'+'Second_coef'+'\n')
 
     most_influential_nonmerg = []
@@ -995,14 +1001,17 @@ def classify(prefix, prefix_frames, run, LDA, terms_RFR, df, verbose=False):
         list_elements.append(element)
         
     max_idx = np.where(list_count==np.sort(list_count)[-1])[0][0]
-    print('top 1 merger', np.sort(list_count)[-1], list_elements[max_idx])
+    if verbose:
+        print('top 1 merger', np.sort(list_count)[-1], list_elements[max_idx])
     first_imp_merg = list_elements[max_idx]
     try:
         sec_max_idx = np.where(list_count==np.sort(list_count)[-2])[0][0]
-        print('top 2 merger', np.sort(list_count)[-2], list_elements[sec_max_idx])
+        if verbose:
+            print('top 2 merger', np.sort(list_count)[-2], list_elements[sec_max_idx])
         second_imp_merg = list_elements[sec_max_idx]
     except IndexError:
-        print('no second term')
+        if verbose:
+            print('no second term')
         second_imp_merg = first_imp_merg
 
 
@@ -2624,7 +2633,7 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     #~~~~~~~
 
     print('loading up predictor value table........')
-    df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_all_flags_plus_segmap.txt', sep='\t')
+    df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_with_flags.txt', sep='\t')
     
     if all:
         pass
@@ -2645,11 +2654,13 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     #df2 = df_filtered_2
 
     # Delete duplicates:
-    print('len bf duplicate delete', len(df2))
+    if verbose:
+        print('len bf duplicate delete', len(df2))
     df2_nodup = df2.duplicated()
     df2 = df2[~df2_nodup]
-    print('len af duplicate delete', len(df2))
-    print(df2)
+    if verbose:
+        print('len af duplicate delete', len(df2))
+        print(df2)
 
     if cut_flagged:# Then get rid of the entries that are flagged
         df_keep = df2[(df2['low S/N'] == 0) & (df2['outlier predictor'] == 0) & (df2['segmap']==0)]
@@ -2746,12 +2757,17 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
 
     p_merg_merg_SDSS = []
     p_merg_nonmerg_SDSS = []
+
+
     
     
 
     for j in range(len(X_gal)):
         #print(X_gal[j])
+
+        # this is an array of everything standardized
         X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
+
         X_std.append(X_standardized)
         # use the output from the simulation to assign LD1 value:
         LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
@@ -2767,30 +2783,53 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
         p_merg = 1/(1 + np.exp(-LD1_gal))
         p_nonmerg = 1/(1 + np.exp(LD1_gal))
         
+        coeffs = (X_standardized*LDA[3])[0]
+        terms = LDA[2]
 
+        
         
         if LD1_gal > 0:
             merg = 1
-            # select the thing that is the most positive
-            max_idx = np.argmax(X_standardized*LDA[3])
-            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx]
-            most_influential_term = LDA[2][max_idx]
+            # select the coefficient that is the most positive
+            # So the max index is what?
+            # is the max of the standardized array times all the coefficients, so what has the largest positive value?
+            # this just gives you the index to search, if selected from LDA[2] gives you the name of that term
+            # and if selected from the lda[3]*x_standardized gives the additive value of this
             
-            most_influential_merg.append(most_influential_term)
-            most_influential_merg_c.append(most_influential_coeff)
+            
+            # Array to sort:
+            arr1inds = coeffs.argsort()
+            sorted_terms = terms[arr1inds[::-1]]
+            sorted_coeff = coeffs[arr1inds[::-1]]
+
+            
+
+            
+            most_influential_merg.append([sorted_terms[0],sorted_terms[1],sorted_terms[2]])
+            most_influential_merg_c.append([sorted_coeff[0],sorted_coeff[1],sorted_coeff[2]])
             LDA_merg_SDSS.append(LD1_gal)
             p_merg_merg_SDSS.append(p_merg)
+
+            most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
         else:
             merg = 0
+            
+
+            # Array to sort:
+            arr1inds = coeffs.argsort()
+            sorted_terms = terms[arr1inds[::-1]]
+            sorted_coeff = coeffs[arr1inds[::-1]]
+
+            
+
+            
+            most_influential_nonmerg.append([sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]])
+            most_influential_nonmerg_c.append([sorted_coeff[-1],sorted_coeff[-2],sorted_coeff[-3]])
             LDA_nonmerg_SDSS.append(LD1_gal)
             p_merg_nonmerg_SDSS.append(p_merg)
-            # select the thing that is the most positive
-            max_idx = np.argmin(X_standardized*LDA[3])
-            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx]
-            most_influential_term = LDA[2][max_idx]
             
-            most_influential_nonmerg.append(most_influential_term)
-            most_influential_nonmerg_c.append(most_influential_coeff)
+            most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+
         p_merg_list.append(p_merg)
         most_influential.append(most_influential_term)
                 
@@ -3998,8 +4037,8 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
         axs[axis_number].annotate(str(df_with_p_shuffle['most influential'][p])+'\nGini = '+str(round(preds[2],2))+' M20 = '+str(round(preds[3],2))+'\nC = '+str(round(preds[4],2))+' A = '
             +str(round(preds[5],2))+' S = '+str(round(preds[6],2))+
             '\nn = '+str(round(preds[7],2))+' A_S = '+str(round(preds[8],2)), 
-                xy=(0.03, 0.1),  xycoords='axes fraction',
-            xytext=(0.03, 0.1), textcoords='axes fraction',
+                xy=(0.05, 0.07),  xycoords='axes fraction',
+            xytext=(0.05, 0.07), textcoords='axes fraction',
             bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
         
         counter_i+=1
@@ -4064,8 +4103,8 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
         axs[axis_number].annotate(str(df_with_p_shuffle['most influential'][p])+'\nGini = '+str(round(preds[2],2))+' M20 = '+str(round(preds[3],2))+'\nC = '+str(round(preds[4],2))+' A = '
             +str(round(preds[5],2))+' S = '+str(round(preds[6],2))+
             '\nn = '+str(round(preds[7],2))+' A_S = '+str(round(preds[8],2)), 
-                xy=(0.03, 0.1),  xycoords='axes fraction',
-            xytext=(0.03, 0.1), textcoords='axes fraction',
+                xy=(0.05, 0.07),  xycoords='axes fraction',
+            xytext=(0.05, 0.07), textcoords='axes fraction',
             bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
         
         counter_i+=1
@@ -4172,7 +4211,7 @@ def classify_changing_priors_flag(prefix, prefix_frames, run, LDA, terms_RFR, df
 
             # select the thing that is the most positive
             max_idx = np.argmax(X_standardized*LDA[3])
-            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx]
+            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx] # so this is the max of 
             most_influential_term = LDA[2][max_idx]
             
         else:
