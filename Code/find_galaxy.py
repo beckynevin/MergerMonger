@@ -53,24 +53,31 @@ ID_list = [1237661360224403465,1237654954277404992,1237654954818535766,123765510
 # This is what you're going to use as a suffix for the names of the saved images
 appellido = 'breakbrd_objids'#'drpall-v3_1_1_objid'#'breakbrd_objids'#
 #appellido = 'AGNs'
+appellido = 'control'#'Control_Sample1_MaNGA_MPL7'#AGN1.1_MaNGA_MPL7
 print('appellido is', appellido)
+fits = False
 
-# Get ID list instead from Dave's tables:
-fits_table = fits.open('../Tables/'+appellido+'.fits')
-    #drpall-v3_1_1_objid.fits')
+if fits:
+    # Get ID list instead from Dave's tables:
+    fits_table = fits.open('../Tables/'+appellido+'.fits')
+        #drpall-v3_1_1_objid.fits')
 
-ID_list = fits_table[1].data['objid']#[0:10]
-print('IDs', ID_list)
-print('length', len(ID_list))
+    ID_list = fits_table[1].data['objid']#[0:10]
+    print('IDs', ID_list)
+    print('length', len(ID_list))
+else:
+    data=pd.read_csv('../Tables/'+appellido+'.csv')#,  names=cols, skiprows=1, header=None)
 
+    ID_list = data['objID'].values
 
-
+    
+print('length of stuff to run', len(ID_list))
 
 
 
 # Define the sizes of the images and where your LDA and SDSS tables live:
 merger_type = 'major_merger'
-plot = True
+plot = False
 size = 80
 prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
 
@@ -93,6 +100,8 @@ df_predictors = df_predictors.astype({'ID': 'int64'})#.dtypes
 df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags_leading_preds.txt', sep='\t')
 #print(df_LDA.columns, df_predictors.columns)
 df_LDA = df_LDA.astype({'ID': 'int64'})
+
+
 
 
 
@@ -344,7 +353,7 @@ for i in range(len(ID_list)):
             #if flag > 0: # this means its been flagged for something
             '''
             # Check if the figure already exists:
-            if os.path.exists(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'.png', dpi=1000):
+            if os.path.exists(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'.png'):
                 print('already made statmorph fig')
             
             else:
