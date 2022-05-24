@@ -192,7 +192,7 @@ _S)','random']
     LDA_ID = output_LDA[8]
     return output_LDA, terms_RFR, df#, len_nonmerg, len_merg                                                          
 
-def load_LDA_from_simulation_changing_priors(run, prefix_frames, priors, verbose=True, plot=True):
+def load_LDA_from_simulation_changing_priors(run, prefix_frames, priors, verbose=False, plot=False):
 
 
     feature_dict = {i:label for i,label in zip(
@@ -2693,6 +2693,149 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
 
     X_gal = df2[LDA[2]].values
 
+    # Creating table
+    print('making table of LDA output for all galaxies.....')
+    file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flags.txt','w')
+    file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'
+        +'Leading_term'+'\t'+'Leading_coef'+'low S/N'+'\t'+'outlier predictor'+'\n')
+    #+'Second_term'+'\t'+'Second_coef'+'\n')
+
+    
+
+    for j in range(len(X_gal)):
+        print(j)
+        #print(X_gal[j])
+
+        # this is an array of everything standardized
+        X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
+
+        # use the output from the simulation to assign LD1 value:
+        LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
+        
+        
+        
+        
+        # According to my calculations, LD1 = delta_1 - delta_0 where delta is the score for each class
+        # Therefore, in the probability equation p_merg = e^delta_1/(e^delta_1+e^delta_0)
+        # you can sub in LD1 and instead end up with p_merg = 1/(1+e^-LD1)
+        
+        p_merg = 1/(1 + np.exp(-LD1_gal))
+        p_nonmerg = 1/(1 + np.exp(LD1_gal))
+        
+        coeffs = (X_standardized*LDA[3])[0]
+        terms = LDA[2]
+
+        
+        
+        if LD1_gal > 0:
+            merg = 1
+            # select the coefficient that is the most positive
+            # So the max index is what?
+            # is the max of the standardized array times all the coefficients, so what has the largest positive value?
+            # this just gives you the index to search, if selected from LDA[2] gives you the name of that term
+            # and if selected from the lda[3]*x_standardized gives the additive value of this
+            
+            
+            # Array to sort:
+            arr1inds = coeffs.argsort()
+            sorted_terms = terms[arr1inds[::-1]]
+            sorted_coeff = coeffs[arr1inds[::-1]]
+
+
+            most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
+            most_influential_coeff = [sorted_coeff[0],sorted_coeff[1],sorted_coeff[2]]
+        else:
+            merg = 0
+            
+
+            # Array to sort:
+            arr1inds = coeffs.argsort()
+            sorted_terms = terms[arr1inds[::-1]]
+            sorted_coeff = coeffs[arr1inds[::-1]]
+            
+            most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+            most_influential_coeff = [sorted_coeff[-1],sorted_coeff[-2],sorted_coeff[-3]]
+
+        file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'
+            +most_influential_term[0]+'\t'+str(round(most_influential_coeff[0],1))+'\t'
+            +str(df2[['low S/N']].values[j][0])+'\t'+str(df2[['outlier predictor']].values[j][0])+'\n')
+        
+    file_out.close()
+    return
+
+
+
+
+
+
+def classify_from_flagged_plots(prefix, prefix_frames, run, LDA, terms_RFR, df, number_run, verbose=False, all=True, cut_flagged = True):
+    #~~~~~~~
+    # Now bring in the SDSS galaxies!
+    #~~~~~~~
+
+    print('loading up predictor value table........')
+    df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_with_flags.txt', sep='\t')
+    
+    if all:
+        pass
+    else:
+        df2 = df2[0:number_run]
+    
+    if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
+        df2 = df2.iloc[: , 1:]
+
+    
+
+    # First, delete all rows that have weird values of n:
+    #print('len before crazy values', len(df2))
+    #df_filtered = df2[df2['Sersic N'] < 10]
+
+    #df_filtered_2 = df_filtered[df_filtered['Asymmetry (A)'] > -1]
+
+    #df2 = df_filtered_2
+
+    # Delete duplicates:
+    if verbose:
+        print('len bf duplicate delete', len(df2))
+    df2_nodup = df2.duplicated()
+    df2 = df2[~df2_nodup]
+    if verbose:
+        print('len af duplicate delete', len(df2))
+        print(df2)
+
+    if cut_flagged:# Then get rid of the entries that are flagged
+        df_keep = df2[(df2['low S/N'] == 0) & (df2['outlier predictor'] == 0) & (df2['segmap']==0)]
+        df2 = df_keep
+        
+
+
+    
+    input_singular = terms_RFR
+    #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
+    crossterms = []
+    ct_1 = []
+    ct_2 = []
+    for j in range(len(input_singular)):
+        for i in range(len(input_singular)):
+            if j == i or i < j:
+                continue
+            #input_singular.append(input_singular[j]+'*'+input_singular[i])
+            crossterms.append(input_singular[j]+'*'+input_singular[i])
+            ct_1.append(input_singular[j])
+            ct_2.append(input_singular[i])
+
+    inputs = input_singular + crossterms
+
+    # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
+    for j in range(len(crossterms)):
+        
+        df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
+        
+
+    X_gal = df2[LDA[2]].values
+
+   
+
 
 
 
@@ -2739,7 +2882,7 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
         # Make a table with merger probabilities and other diagnostics:
         # you need to run just 'classify' first
     else:
-        if path.exists(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flag.txt'):
+        if path.exists(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flags.txt'):
             exists = 1
             print('Table already exists')
         else:
@@ -2823,8 +2966,8 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
             sorted_terms = terms[arr1inds[::-1]]
             sorted_coeff = coeffs[arr1inds[::-1]]
 
-            most_influential_merg.append(sorted_terms[-1])
-            most_influential_merg_c.append(sorted_coeff[-1])
+            most_influential_nonmerg.append(sorted_terms[-1])
+            most_influential_nonmerg_c.append(sorted_coeff[-1])
             most_influential_term = sorted_terms[-1]
             '''
             
@@ -4197,25 +4340,26 @@ def classify_from_flagged_interpretive_table(prefix, prefix_frames, run, LDA, te
 
     # Creating table
     print('making table of LDA output for all galaxies.....')
-    file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flag_leading_preds.txt','w')
-    file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\n')
+    file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flags_leading_preds.txt','w')
+    file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'
+        +'Leading_term_0'+'\t'+'Leading_coef_0'+'\t'+'Leading_term_1'+'\t'+'Leading_coef_1'+'\t'+'Leading_term_2'+'\t'+'Leading_coef_2'+'\t'
+        +'low S/N'+'\t'+'outlier predictor'+'\n')
     #+'Second_term'+'\t'+'Second_coef'+'\n')
 
     
 
     for j in range(len(X_gal)):
+        print(j)
         #print(X_gal[j])
 
         # this is an array of everything standardized
         X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
 
-        X_std.append(X_standardized)
         # use the output from the simulation to assign LD1 value:
         LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
         
         
         
-        LD1_SDSS.append(LD1_gal)
         
         # According to my calculations, LD1 = delta_1 - delta_0 where delta is the score for each class
         # Therefore, in the probability equation p_merg = e^delta_1/(e^delta_1+e^delta_0)
@@ -4245,6 +4389,7 @@ def classify_from_flagged_interpretive_table(prefix, prefix_frames, run, LDA, te
 
 
             most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
+            most_influential_coeff = [sorted_coeff[0],sorted_coeff[1],sorted_coeff[2]]
         else:
             merg = 0
             
@@ -4255,124 +4400,131 @@ def classify_from_flagged_interpretive_table(prefix, prefix_frames, run, LDA, te
             sorted_coeff = coeffs[arr1inds[::-1]]
             
             most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+            most_influential_coeff = [sorted_coeff[-1],sorted_coeff[-2],sorted_coeff[-3]]
 
         file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'
-            +most_influential_term+'\t'+str(most_influential_coeff)+'\t'+str(df2[['low S/N']].values[j][0])+'\t'+str(df2[['outlier predictor']].values[j][0])+'\n')
+            +most_influential_term[0]+'\t'+str(round(most_influential_coeff[0],1))+'\t'
+            +most_influential_term[1]+'\t'+str(round(most_influential_coeff[1],1))+'\t'
+            +most_influential_term[2]+'\t'+str(round(most_influential_coeff[2],1))+'\t'
+            +str(df2[['low S/N']].values[j][0])+'\t'+str(df2[['outlier predictor']].values[j][0])+'\n')
         
     file_out.close()
     return
 
-def classify_changing_priors_flag(prefix, prefix_frames, run, LDA, terms_RFR, df, priors, number_run, verbose=False, run_all=True):
-    #~~~~~~~
-    # Now bring in the SDSS galaxies!
-    #~~~~~~~
+def classify_changing_priors_from_flagged(prefix, prefix_frames, 
+    run, LDA, terms_RFR, df, priors, number_run, 
+    verbose=False, run_all=True, cut_flagged=True):
 
-    print('loading up predictor value table........')
-    df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_all_flags.txt', sep='\t')
-    
-
-    #df2 = df2[0:1000]
-    
-    if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
-        df2 = df2.iloc[: , 1:]
-
-    
-
-    # First, delete all rows that have weird values of n:
-    #print('len before crazy values', len(df2))
-    #df_filtered = df2[df2['Sersic N'] < 10]
-
-    #df_filtered_2 = df_filtered[df_filtered['Asymmetry (A)'] > -1]
-
-    #df2 = df_filtered_2
-
-    # Delete duplicates:
-    print('len bf duplicate delete', len(df2))
-    df2_nodup = df2.duplicated()
-    df2 = df2[~df2_nodup]
-    print('len af duplicate delete', len(df2))
-
-    if run_all:
-        pass
+    file_name = prefix+'change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'_'+str(priors)+'_flags_cut_segmap.txt'
+    if os.path.exists(file_name):
+        print('already exists')
     else:
-        df2 = df2[0:number_run]
-
-
-    
-    input_singular = terms_RFR
-    #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
-    crossterms = []
-    ct_1 = []
-    ct_2 = []
-    for j in range(len(input_singular)):
-        for i in range(len(input_singular)):
-            if j == i or i < j:
-                continue
-            #input_singular.append(input_singular[j]+'*'+input_singular[i])
-            crossterms.append(input_singular[j]+'*'+input_singular[i])
-            ct_1.append(input_singular[j])
-            ct_2.append(input_singular[i])
-
-    inputs = input_singular + crossterms
-
-    # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
-    for j in range(len(crossterms)):
-        
-        df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
+        print('gonna make the file')
+        #~~~~~~~
+        # Now bring in the SDSS galaxies!
+        #~~~~~~~
+        if verbose:
+            print('loading up predictor value table........')
+        df2 = pd.io.parsers.read_csv(prefix+'SDSS_predictors_all_flags_plus_segmap.txt', sep='\t')
         
 
-    X_gal = df2[LDA[2]].values
-
-
-    
-    
-    # Make a table with merger probabilities and other diagnostics:
-    print('making table of LDA output for all galaxies.....')
-    file_out = open(prefix+'change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'_'+str(priors)+'_flag.txt','w')
-    file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'+'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\n')
-    #+'Second_term'+'\t'+'Second_coef'+'\n')
-
-
-    
-
-    for j in range(len(X_gal)):
-        #print(X_gal[j])
-        X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
-        # use the output from the simulation to assign LD1 value:
-        LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
+        #df2 = df2[0:1000]
         
-       
-        
-        # According to my calculations, LD1 = delta_1 - delta_0 where delta is the score for each class
-        # Therefore, in the probability equation p_merg = e^delta_1/(e^delta_1+e^delta_0)
-        # you can sub in LD1 and instead end up with p_merg = 1/(1+e^-LD1)
-        
-        p_merg = 1/(1 + np.exp(-LD1_gal))
-        p_nonmerg = 0#1/(1 + np.exp(LD1_gal))
-       
+        if len(df2.columns) ==15: #then you have to delete the first column which is an empty index
+            df2 = df2.iloc[: , 1:]
+        #print('length of df2 pre cut', len(df2))
+        if cut_flagged:
+            df2 = df2[(df2['low S/N']==0) & (df2['outlier predictor']==0) & (df2['segmap']==0)]
+        #print('length after flagged cut', len(df2))
+        #STOP
+        # First, delete all rows that have weird values of n:
+        #print('len before crazy values', len(df2))
+        #df_filtered = df2[df2['Sersic N'] < 10]
 
+        #df_filtered_2 = df_filtered[df_filtered['Asymmetry (A)'] > -1]
 
-        
-        if LD1_gal > 0:
-            merg = 1
+        #df2 = df_filtered_2
 
-            # select the thing that is the most positive
-            max_idx = np.argmax(X_standardized*LDA[3])
-            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx] # so this is the max of 
-            most_influential_term = LDA[2][max_idx]
-            
+        # Delete duplicates:
+        if verbose:
+            print('len bf duplicate delete', len(df2))
+        df2_nodup = df2.duplicated()
+        df2 = df2[~df2_nodup]
+        if verbose:
+
+            print('len af duplicate delete', len(df2))
+
+        if run_all:
+            pass
         else:
-            merg = 0
-            # select the thing that is the most positive
-            max_idx = np.argmin(X_standardized*LDA[3])
-            most_influential_coeff = (X_standardized*LDA[3])[0,max_idx]
-            most_influential_term = LDA[2][max_idx]
+            df2 = df2[0:number_run]
+
+
+        
+        input_singular = terms_RFR
+        #Okay so this next part actually needs to be adaptable to reproduce all possible cross-terms
+        crossterms = []
+        ct_1 = []
+        ct_2 = []
+        for j in range(len(input_singular)):
+            for i in range(len(input_singular)):
+                if j == i or i < j:
+                    continue
+                #input_singular.append(input_singular[j]+'*'+input_singular[i])
+                crossterms.append(input_singular[j]+'*'+input_singular[i])
+                ct_1.append(input_singular[j])
+                ct_2.append(input_singular[i])
+
+        inputs = input_singular + crossterms
+
+        # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
+        for j in range(len(crossterms)):
+            
+            df2[crossterms[j]] = df2.apply(cross_term, axis=1, args=(ct_1[j], ct_2[j]))
+            
+
+        X_gal = df2[LDA[2]].values
+
+
+        
+        
+        # Make a table with merger probabilities and other diagnostics:
+        if verbose:
+            print('making table of LDA output for all galaxies.....')
+
+    
+    
+        file_out = open(file_name,'w')
+        
+        file_out.write('ID'+'\t'+'p_merg'+'\n')
+        #    +'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\t'+'segmap'+'\n')
+        #Used to be, I was writing out all of this stuff:
+        #file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'
+        #    +'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\t'+'segmap'+'\n')
+        #+'Second_term'+'\t'+'Second_coef'+'\n')
+
+
+        
+
+        for j in range(len(X_gal)):
+            #print(X_gal[j])
+            X_standardized = list((X_gal[j]-LDA[0])/LDA[1])
+            # use the output from the simulation to assign LD1 value:
+            LD1_gal = float(np.sum(X_standardized*LDA[3])+LDA[4])
             
            
-        file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'
-            +most_influential_term+'\t'+str(most_influential_coeff)+'\t'+str(df2[['low S/N']].values[j][0])+'\t'+str(df2[['outlier predictor']].values[j][0])+'\n')
-        
-    file_out.close()
+            
+            # According to my calculations, LD1 = delta_1 - delta_0 where delta is the score for each class
+            # Therefore, in the probability equation p_merg = e^delta_1/(e^delta_1+e^delta_0)
+            # you can sub in LD1 and instead end up with p_merg = 1/(1+e^-LD1)
+            
+            p_merg = 1/(1 + np.exp(-LD1_gal))
+            
+                
+               
+            file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(round(p_merg,3))+'\n')
+            
+        file_out.close()
         
 
     return
