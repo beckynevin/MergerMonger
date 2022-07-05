@@ -23,6 +23,7 @@ from sklearn import linear_model
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
+from statsmodels.stats.outliers_influence import summary_table
 from scipy.stats import iqr
 
 
@@ -31,9 +32,21 @@ dir = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
 
 type_gal = 'predictors'
 run = 'major_merger'
-suffix = 'color_complete'
+suffix = 'color_complete_z_bins_z_lt_0_pt_1_pozzetti'#_1'#_complete'
+suffix = 'measurements'
 type_marginalized = '_flags_cut_segmap'
 num = None
+savefigs = False
+save_df = False
+
+# The below are flags for 
+s_n_cut = False
+if s_n_cut:
+	add_on_binned_table = 's_n_15_to_20'
+else:
+	add_on_binned_table = ''
+low_s_n = 15
+high_s_n = 20
 #choose_mass = 'mendel'
 
 
@@ -52,21 +65,24 @@ if len(df_LDA) != len(df_predictors):
 df_predictors_clean = df_predictors[(df_predictors['low S/N'] ==0) & (df_predictors['outlier predictor']==0)]#& (df_predictors['segmap']==0)]
 
 clean_LDA = df_LDA[df_LDA['ID'].isin(df_predictors_clean['ID'].values)]
-
-if suffix == 'color_complete':
-	masstable = pd.io.parsers.read_csv(filepath_or_buffer=dir+'all_mass_color_complete.txt',header=[0],sep='\t')
-if suffix == 'color':
-	masstable = pd.io.parsers.read_csv(filepath_or_buffer=dir+'all_mass_color.txt',header=[0],sep='\t')
+masstable = pd.io.parsers.read_csv(filepath_or_buffer=dir+'all_mass_'+str(suffix)+'.txt',header=[0],sep='\t')
 print(masstable.columns)
 
-masstable = masstable[masstable['log_stellar_mass_from_color'] < 13]
+masstable = masstable[masstable['logBD'] < 13]#log_stellar_mass_from_color
 
 
 # Now merge this with LDA
 final_merged = masstable.merge(clean_LDA, left_on='objID', right_on='ID')#[0:1000]# Now merging on dr8
 print('len final merged', final_merged)
 
+
 print(final_merged.columns)
+
+
+
+
+
+
 
 # mask nans
 if num:
@@ -90,8 +106,10 @@ plt.ylim([0,1])
 plt.savefig('../Figures/B_T.png')
 '''
 
-
-final_merged = final_merged[['objID','p_merg_x','LD1','z','log_stellar_mass_from_color']]
+try:
+	final_merged = final_merged[['objID','p_merg_x','LD1','z','log_stellar_mass_from_color']]
+except KeyError:
+	final_merged = final_merged[['objID','p_merg_x','LD1','z_x','log_stellar_mass_from_color']]
 df = final_merged
 
 
@@ -101,8 +119,12 @@ df = final_merged
 
 df_pred_merged = df_predictors_clean.merge(df, left_on='ID', right_on='objID')# Now merging on dr8
 
+
 print(df_pred_merged.columns)
-X = df_pred_merged[[ 'z','Concentration (C)','Gini','Asymmetry (A)']]
+try:
+	X = df_pred_merged[[ 'z','Concentration (C)','Gini','Asymmetry (A)']]
+except KeyError:
+	X = df_pred_merged[[ 'z_x','Concentration (C)','Gini','Asymmetry (A)']]
 # standardize
 
 scaler = StandardScaler()
@@ -127,13 +149,31 @@ ols = sm.OLS(y.values, X_with_intercept)
 ols_result = ols.fit()
 print(ols_result.summary())
 
+# Can also run a similar analysis to see if z and S/N are related (spoiler: they are)
+
+# Does z predict S/N?
+
+# Do a 2D regression:
+try:
+	X = df_pred_merged[['z']] 
+except KeyError:
+	X = df_pred_merged[['z_x']] 
+y = df_pred_merged['S/N']
+## fit a OLS model with intercept on mass and z
+X = sm.add_constant(X)
+est = sm.OLS(y, X).fit()
+print(est.summary())
+
 
 
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Do multi-linear regression without doing the following fancy marginalization as part of it
-X = df[[ 'z']]
+try:
+	X = df[[ 'z']]
+except KeyError:
+	X = df[[ 'z_x']]
 # standardize
 
 scaler = StandardScaler()
@@ -186,76 +226,188 @@ nbins = 6
 
 cats_mass, bins_mass = pd.qcut(df['log_stellar_mass_from_color'], q=nbins, retbins=True, precision = 1)
 #df['mass_bin'] = cats_mass
-cats_z, bins_z = pd.qcut(df['z'], q=nbins, retbins=True, precision = 1)
-#df['z_bin'] = cats_z
-print('~~~~~~~~~~~~~~')
-centers_z = [(bins_z[x+1] - bins_z[x])/2 + bins_z[x] for x in range(len(bins_z)-1)]
+
+if suffix == 'color_complete_z_bins':
+	centers_z = [0.032275000000000005, 0.073274, 0.091613, 0.1115435, 0.137801, 0.5676965]
+	bins_z = [5.09000e-04, 6.40410e-02, 8.25070e-02, 1.00719e-01, 1.22368e-01, 1.53234e-01, 9.82159e-01]
+
+if suffix == 'measurements' or suffix == 'color_complete_z_bins_z_lt_0_pt_1' or suffix == 'color_complete_z_bins_z_lt_0_pt_1_pozzetti' or suffix == 'color_complete_z_bins_z_lt_0_pt_1_pozzetti_50' or suffix == 'color_complete_z_bins_z_lt_0_pt_1_pozzetti_99' or suffix == 'color_complete_z_bins_z_lt_0_pt_1_pozzetti_1':
+	centers_z = [0.024610499999999997, 0.0562255, 0.0687485, 0.0779165, 0.0863525, 0.0953145]
+	bins_z = [0.000509, 0.048712, 0.063739, 0.073758, 0.082075, 0.09063,  0.099999]
+
+if suffix == 'color_complete' or suffix == 'color':
+	cats_z, bins_z = pd.qcut(df['z'], q=nbins, retbins=True, precision = 1)
+	#df['z_bin'] = cats_z
+	
+	centers_z = [(bins_z[x+1] - bins_z[x])/2 + bins_z[x] for x in range(len(bins_z)-1)]
 centers_mass = [(bins_mass[x+1] - bins_mass[x])/2 + bins_mass[x] for x in range(len(bins_mass)-1)]
+
+print('~~~~~~~~~~~~~~')
 print(bins_z)
 print(centers_z)
 
 print(bins_mass)
 print(centers_mass)
 
-
-
-
-
-
-count = {}
-f_merg = {}
-f_merg_avg = {}
-f_merg_std = {}
+# Now that you have the bins in both dimensions, make a figure of your different bins:
+plt.clf()
+'''
+plt.scatter(df_pred_merged['z_x'].values, df_pred_merged['log_stellar_mass_from_color'].values, color='orange', s=0.2)
+plt.annotate(str(len(df_pred_merged['z_x'].values)), 
+	xy = (np.mean(df_pred_merged['z_x'].values), np.mean(df_pred_merged['log_stellar_mass_from_color'].values)), 
+	xycoords='data', color='black')
+'''
 for i in range(len(bins_z)-1):
 	bin_start_z = bins_z[i]
 	bin_end_z = bins_z[i+1]
-	print('start z ', bin_start_z, 'stop z ', bin_end_z)
 	for j in range(len(bins_mass)-1):
 		bin_start_mass = bins_mass[j]
 		bin_end_mass = bins_mass[j+1]
-		print('start mass ', bin_start_mass, 'stop mass ', bin_end_mass)
-		# build dataset
-		df_select = final_merged[(final_merged['z'] > bin_start_z) & (final_merged['z'] < bin_end_z) & (final_merged['log_stellar_mass_from_color'] > bin_start_mass) & (final_merged['log_stellar_mass_from_color'] < bin_end_mass)]
-		count[centers_z[i],centers_mass[j]] = len(df_select)
+		df_select = df_pred_merged[(df_pred_merged['z_x'] > bin_start_z) 
+			& (df_pred_merged['z_x'] < bin_end_z) 
+			& (df_pred_merged['log_stellar_mass_from_color'] > bin_start_mass) 
+			& (df_pred_merged['log_stellar_mass_from_color'] < bin_end_mass)]
+		plt.scatter(df_select['z_x'].values, df_select['log_stellar_mass_from_color'].values, 
+			s=0.2)
+		plt.annotate(str(len(df_select['z_x'].values)), 
+			xy = (np.mean(df_select['z_x'].values) - 0.005, np.mean(df_select['log_stellar_mass_from_color'].values - 0.05)), 
+			xycoords='data', color='black')
+plt.xlabel(r'$z$')
+plt.ylabel('log stellar mass')
+if savefigs:
+	plt.savefig('../Figures/MCMC_scatter_'+str(run)+'_'+suffix+'_color.png', dpi=1000)
+else:
+	plt.show()
 
-		# Now for each of these go through all of the LDA tables and match and pull a merger fraction from this :)
 
-		
-		list_of_prior_files = glob.glob('../Tables/change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'*'+str(type_marginalized)+'.txt')
-		
-		# Okay go through all of these, load them up, and match to the object IDs:
-		f_merg[centers_z[i],centers_mass[j]] = []
-		for p in range(len(list_of_prior_files)):
-			if p > 10: 
-				continue
-			prior_file = pd.io.parsers.read_csv(filepath_or_buffer=list_of_prior_files[p],header=[0],sep='\t')
-			# cut it way down
-			table = prior_file[['ID','p_merg']]
-			#table = table[0:100]
-			merged = table.merge(df_select, left_on='ID', right_on='objID')
-			'''
-			if len(merged) == 0:
-				f_merg_here = 0
-				continue
-			print('length of merge', len(merged))
-			'''
+
+
+
+
+# try to load up the df of mass centers:
+if save_df:
+
+	count = {}
+	f_merg = {}
+	f_merg_avg = {}
+	f_merg_std = {}
+	for i in range(len(bins_z)-1):
+		bin_start_z = bins_z[i]
+		bin_end_z = bins_z[i+1]
+		print('start z ', bin_start_z, 'stop z ', bin_end_z)
+		for j in range(len(bins_mass)-1):
+			bin_start_mass = bins_mass[j]
+			bin_end_mass = bins_mass[j+1]
+			print('start mass ', bin_start_mass, 'stop mass ', bin_end_mass)
+			# build dataset
+			if s_n_cut:#df_pred_merged
+				try:
+					df_select = df_pred_merged[(df_pred_merged['S/N'] > low_s_n) & (df_pred_merged['S/N'] < high_s_n)
+						& (df_pred_merged['z'] > bin_start_z) 
+						& (df_pred_merged['z'] < bin_end_z) 
+						& (df_pred_merged['log_stellar_mass_from_color'] > bin_start_mass) 
+						& (df_pred_merged['log_stellar_mass_from_color'] < bin_end_mass)]
+				except KeyError:
+					df_select = df_pred_merged[(df_pred_merged['S/N'] > low_s_n) & (df_pred_merged['S/N'] < high_s_n)
+						& (df_pred_merged['z_x'] > bin_start_z) 
+						& (df_pred_merged['z_x'] < bin_end_z) 
+						& (df_pred_merged['log_stellar_mass_from_color'] > bin_start_mass) 
+						& (df_pred_merged['log_stellar_mass_from_color'] < bin_end_mass)]
+			else:
+				try:
+					df_select = df_pred_merged[(df_pred_merged['z'] > bin_start_z) 
+						& (df_pred_merged['z'] < bin_end_z) 
+						& (df_pred_merged['log_stellar_mass_from_color'] > bin_start_mass) 
+						& (df_pred_merged['log_stellar_mass_from_color'] < bin_end_mass)]
+				except KeyError:
+					df_select = df_pred_merged[(df_pred_merged['z_x'] > bin_start_z) 
+						& (df_pred_merged['z_x'] < bin_end_z) 
+						& (df_pred_merged['log_stellar_mass_from_color'] > bin_start_mass) 
+						& (df_pred_merged['log_stellar_mass_from_color'] < bin_end_mass)]
+			count[centers_z[i],centers_mass[j]] = len(df_select)
+
+
+			# Now for each of these go through all of the LDA tables and match and pull a merger fraction from this :)
+
 			
-			# Count the fraction of things greater than 0.5:
-			try:
-				fmerg_here = len(np.where(merged['p_merg'] > 0.5)[0])/len(merged)
-			except ZeroDivisionError:
-				continue
-			f_merg[centers_z[i],centers_mass[j]].append(fmerg_here)
-		f_merg_avg[centers_z[i],centers_mass[j]] = np.median(f_merg[centers_z[i],centers_mass[j]])
-		f_merg_std[centers_z[i],centers_mass[j]] = np.std(f_merg[centers_z[i],centers_mass[j]])
+			list_of_prior_files = glob.glob('../Tables/change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'*'+str(type_marginalized)+'.txt')
+			
+			# Okay go through all of these, load them up, and match to the object IDs:
+			f_merg[centers_z[i],centers_mass[j]] = []
+			for p in range(len(list_of_prior_files)):
+				#if p > 10: 
+				#	continue
+				prior_file = pd.io.parsers.read_csv(filepath_or_buffer=list_of_prior_files[p],header=[0],sep='\t')
+				# cut it way down
+				table = prior_file[['ID','p_merg']]
+				#table = table[0:100]
+				merged = table.merge(df_select, left_on='ID', right_on='objID')
+				'''
+				if len(merged) == 0:
+					f_merg_here = 0
+					continue
+				print('length of merge', len(merged))
+				'''
+				
+				# Count the fraction of things greater than 0.5:
+				try:
+					fmerg_here = len(np.where(merged['p_merg'] > 0.5)[0])/len(merged)
+				except ZeroDivisionError:
+					continue
+				f_merg[centers_z[i],centers_mass[j]].append(fmerg_here)
+			f_merg_avg[centers_z[i],centers_mass[j]] = np.median(f_merg[centers_z[i],centers_mass[j]])
+			f_merg_std[centers_z[i],centers_mass[j]] = np.std(f_merg[centers_z[i],centers_mass[j]])
 
 
+	# find a way to put this into df format
+	mass_val = []
+	z_val = []
+	f_merg_val = []
+	f_merg_e_val = []
+	count_val = []
+	for i in range(len(bins_z)-1):
+		for j in range(len(bins_mass)-1):
+			f_merg_val.append(f_merg_avg[centers_z[i],centers_mass[j]])
+			f_merg_e_val.append(f_merg_std[centers_z[i],centers_mass[j]])
+			z_val.append(centers_z[i])
+			mass_val.append(centers_mass[j])
+			count_val.append(count[centers_z[i],centers_mass[j]])
+	# Now make a df out of these lists
+	try:
+		df_fmerg = pd.DataFrame(list(zip(mass_val, z_val, f_merg_val, f_merg_e_val, count_val)),
+	           columns =['mass', 'z', 'fmerg', 'fmerg_std', 'count'])
+	except:
+		df_fmerg = pd.DataFrame(list(zip(mass_val, z_val, f_merg_val, f_merg_e_val, count_val)),
+	           columns =['mass', 'z_x', 'fmerg', 'fmerg_std', 'count'])
+	print(df_fmerg)
 
-print('fmerg', f_merg)
-print('count', count)
-print('max count', count[max(count)])
-max_count = count[max(count, key=count.get)]
+	df_fmerg.to_csv('../Tables/df_mass_z_fmerg'+str(suffix)+str(add_on_binned_table)+'.csv', sep='\t')
+else:
+	df_fmerg = pd.read_csv('../Tables/df_mass_z_fmerg'+str(suffix)+str(add_on_binned_table)+'.csv', sep = '\t')
+
+	
+df_fmerg = df_fmerg.dropna()
+print(df_fmerg)
+
+
+# Do a 2D regression:
+try:
+	X = df_fmerg[['mass', 'z']] 
+except KeyError:
+	X = df_fmerg[['mass', 'z_x']] 
+y = df_fmerg['fmerg']
+## fit a OLS model with intercept on mass and z
+X = sm.add_constant(X)
+est = sm.OLS(y, X).fit()
+print(est.summary())
+
+
+count = df_fmerg['count'].values
+
+max_count = max(count)
 print('also max?', max_count)
+
+
 
 plt.clf()
 
@@ -269,32 +421,116 @@ print('centers of zs', centers_z)
 
 color_count = 0
 for zcen in centers_z:
+	print(zcen)
+	print(str(round(bins_z[color_count],3))+'$ < z < $'+str(round(bins_z[color_count+1],3)))
+	#color_count+=1
+	#continue
+	# Grab everything with a z value from the df
+	df_select = df_fmerg[df_fmerg['z'] == zcen].dropna().reset_index()
+	print(df_select)
+	if len(df_select)==0:
+		color_count+=1
+		continue
+	# should already be sorted by mass
+	count = df_select['count'].values
+	print('total count', np.sum(count))
+	masscen = df_select['mass'].values
+
+
 	
-	# Go through and for every mass make a plot
-	avgs = []
-	stds = []
-	first_count = 0
-	for masscen in centers_mass:
-		#avgs.append(f_merg_avg[zcen,masscen])
-		#stds.append(f_merg_std[zcen,masscen])
-		print('mass and z center', masscen, zcen)
-		adjusted_location = 0.03*(color_count - nbins/2 +0.5) + masscen#1.35*(zcen - 0.14) + masscen
-		print('alpha', 'all', count[zcen,masscen]/max_count)
-		print('alpha', 'numerator', count[zcen,masscen])
-		print('alpha', 'denominator',max_count)
-		if first_count == 0:
-			plt.scatter(adjusted_location, f_merg_avg[zcen,masscen], 
-				color=colors[color_count], label=str(round(bins_z[color_count],3))+'$ < z < $'+str(round(bins_z[color_count+1],3)), marker='s',
-				alpha = count[zcen,masscen]/max_count)
-		if count[zcen,masscen] < 0.5* max_count:
-			plt.errorbar(adjusted_location, f_merg_avg[zcen,masscen], yerr = f_merg_std[zcen,masscen], 
+	# to do a linear regression, I'm going to need to define X and y
+	x = masscen.reshape(-1,1)
+	X = sm.add_constant(x)
+
+	y = df_select['fmerg']
+	error = df_select['fmerg_std']
+
+	mu, sigma = 0, 1 # mean and standard deviation
+	
+
+	plt.clf()
+	
+	# iterate
+	# save slope values
+	slope_list = []
+	for num in range(100):
+		Y = [y[i] + error[i] * np.random.normal(mu, sigma, 1) for i in range(len(y))]
+
+		#scaler = StandardScaler()
+		#scaler.fit(X)
+		#X_standardized = scaler.transform(X)
+
+
+		res = sm.OLS(Y, X).fit()
+		
+		#plt.scatter(x, Y, s=0.1, color=colors[color_count])
+		try:
+			slope_list.append(res.params[1])
+		except:
+			slope_list.append(999)
+		
+		
+
+		st, data, ss2 = summary_table(res, alpha=0.05)
+		fittedvalues = data[:,2]
+		predict_mean_se  = data[:,3]
+		predict_mean_ci_low, predict_mean_ci_upp = data[:,4:6].T
+		predict_ci_low, predict_ci_upp = data[:,6:8].T
+
+		#print(summary_table(res, alpha=0.05))
+		
+
+		
+
+		plt.plot(x, fittedvalues, 'black', alpha=0.5)#, label='OLS')
+	#plt.plot(x, predict_ci_low, 'b--')
+	#plt.plot(x, predict_ci_upp, 'b--')
+	#plt.plot(x, predict_mean_ci_low, 'g--')
+	#plt.plot(x, predict_mean_ci_upp, 'g--')
+
+	plt.scatter(x, y, color=colors[color_count], label='data', zorder=100)
+	plt.errorbar(x, y, yerr = error, linestyle='None', color=colors[color_count], zorder=100)
+	for (count, x, y) in zip(count, x, y):
+		plt.annotate(str(count), xy = (x, y+0.07), xycoords='data', color = colors[color_count])
+
+	plt.xlabel('Mass bins')
+	plt.ylabel('fmerg')
+	plt.title('$z = $'+str(zcen))
+	#plt.legend()
+	plt.annotate(str(round(np.mean(slope_list),2))+'+/-'+str(round(np.std(slope_list),2)), 
+		xy=(0.01,0.9), xycoords='axes fraction', color=colors[color_count])
+	if savefigs:
+		plt.savefig('../Figures/MCMC_mass_'+str(run)+'_'+suffix+'_z_'+str(zcen)+'_color.png', dpi=1000)
+	else:
+		plt.show()
+
+	color_count+=1
+
+	continue
+	
+	
+	
+
+	adjusted_location = 0.03*(color_count - nbins/2 +0.5) + masscen#1.35*(zcen - 0.14) + masscen
+	
+	plt.scatter(adjusted_location[0], df_select['fmerg'].values[0], 
+			color=colors[color_count], label=str(round(bins_z[color_count],3))+'$ < z < $'+str(round(bins_z[color_count+1],3)), marker='s',
+			alpha = df_select['count'].values/max_count)
+	
+	plt.scatter(adjusted_location, df_select['fmerg'].values, 
+		color=colors[color_count],  marker='s',
+		alpha = df_select['count'].values/max_count)
+
+	for c in range(len(df_select)):
+		if df_select['count'].values[c] < 0.5* max_count:
+			plt.errorbar(adjusted_location[c], df_select['fmerg'].values[c], yerr = df_select['fmerg_std'].values[c], 
 				color=colors[color_count], linestyle='None', marker='s',
-				alpha = count[zcen,masscen]/max_count)
+				alpha = df_select['count'].values[c]/max_count)
 		else:
-			plt.errorbar(adjusted_location, f_merg_avg[zcen,masscen], yerr = f_merg_std[zcen,masscen], 
+			plt.errorbar(adjusted_location[c], df_select['fmerg'].values[c], yerr = df_select['fmerg_std'].values[c], 
 				color=colors[color_count], linestyle='None', marker='s')
 
-		first_count+=1
+	
 
 	#adjusted_location = [1.3*(zcen - 0.14) + x for x in centers_mass]
 	#plt.scatter(adjusted_location, avgs, color=colors[color_count], label='$z = $'+str(zcen), marker='s')
@@ -311,7 +547,150 @@ plt.xlabel(r'log stellar mass')
 plt.ylabel(r'$f_{\mathrm{merg}}$')
 plt.ylim([0,1])
 plt.xlim([bins_mass[0]-0.1,bins_mass[-1]+0.1])
-plt.savefig('../Figures/2D_hist_equal_bins_z_mass_'+str(run)+'_'+suffix+'.png', dpi=1000)
+if savefigs:
+	plt.savefig('../Figures/2D_hist_equal_bins_z_mass_'+str(run)+'_'+suffix+'.png', dpi=1000)
+else:
+	plt.show()
+
+plt.clf()
+# Make the same plot but for redshift on the x axis:
+color_count = 0
+for masscen in centers_mass:
+	print(masscen)
+	print(str(round(bins_mass[color_count],3))+'$ < M < $'+str(round(bins_mass[color_count+1],3)))
+	#color_count+=1
+	#continue
+	# Grab everything with a z value from the df
+	df_select = df_fmerg[df_fmerg['mass'] == masscen].dropna().reset_index()
+	print(df_select)
+	if len(df_select)==0:
+		color_count+=1
+		continue
+	# should already be sorted by mass
+	count = df_select['count'].values
+	print('total count', np.sum(count))
+	try:
+		zcen = df_select['z'].values
+	except KeyError:
+		zcen = df_select['z_x'].values
+
+
+	
+	# to do a linear regression, I'm going to need to define X and y
+	x = zcen.reshape(-1,1)
+	X = sm.add_constant(x)
+
+	y = df_select['fmerg']
+	error = df_select['fmerg_std']
+
+	mu, sigma = 0, 1 # mean and standard deviation
+
+	
+	plt.clf()
+	
+	# iterate
+	# save slope values
+	slope_list = []
+	for num in range(100):
+		Y = [y[i] + error[i] * np.random.normal(mu, sigma, 1) for i in range(len(y))]
+
+		#scaler = StandardScaler()
+		#scaler.fit(X)
+		#X_standardized = scaler.transform(X)
+
+
+		res = sm.OLS(Y, X).fit()
+		
+		#plt.scatter(x, Y, s=0.1, color=colors[color_count])
+		try:
+			slope_list.append(res.params[1])
+		except:
+			slope_list.append(999)
+		
+		
+
+		st, data, ss2 = summary_table(res, alpha=0.05)
+		fittedvalues = data[:,2]
+		predict_mean_se  = data[:,3]
+		predict_mean_ci_low, predict_mean_ci_upp = data[:,4:6].T
+		predict_ci_low, predict_ci_upp = data[:,6:8].T
+
+		#print(summary_table(res, alpha=0.05))
+		
+
+		
+
+		plt.plot(x, fittedvalues, 'black', alpha=0.5)#, label='OLS')
+	#plt.plot(x, predict_ci_low, 'b--')
+	#plt.plot(x, predict_ci_upp, 'b--')
+	#plt.plot(x, predict_mean_ci_low, 'g--')
+	#plt.plot(x, predict_mean_ci_upp, 'g--')
+
+	plt.scatter(x, y, color=colors[color_count], label='data', zorder=100)
+	plt.errorbar(x, y, yerr = error, linestyle='None', color=colors[color_count], zorder=100)
+	for (count, x, y) in zip(count, x, y):
+		plt.annotate(str(count), xy = (x, y+0.05), xycoords='data', color = colors[color_count])
+
+	plt.xlabel('Redshift bins')
+	plt.ylabel('fmerg')
+	plt.title('M = '+str(masscen))
+	#plt.legend()
+	plt.annotate(str(round(np.mean(slope_list),2))+'+/-'+str(round(np.std(slope_list),2)), 
+		xy=(0.01,0.9), xycoords='axes fraction', color=colors[color_count])
+	if savefigs:
+		plt.savefig('../Figures/MCMC_redshift_'+str(run)+'_'+suffix+'_M_'+str(masscen)+'_color.png', dpi=1000)
+	else:
+		plt.show()
+
+	color_count+=1
+
+	continue
+	
+	
+	
+
+	adjusted_location = 0.005*(color_count - nbins/2 +0.5) + zcen#1.35*(zcen - 0.14) + masscen
+	
+	plt.scatter(adjusted_location[0], df_select['fmerg'].values[0], 
+			color=colors[color_count], label=str(round(bins_mass[color_count],3))+'$ < M < $'+str(round(bins_mass[color_count+1],3)), marker='s',
+			alpha = df_select['count'].values/max_count)
+	
+	plt.scatter(adjusted_location, df_select['fmerg'].values, 
+		color=colors[color_count],  marker='s',
+		alpha = df_select['count'].values/max_count)
+
+	for c in range(len(df_select)):
+		if df_select['count'].values[c] < 0.5* max_count:
+			plt.errorbar(adjusted_location[c], df_select['fmerg'].values[c], yerr = df_select['fmerg_std'].values[c], 
+				color=colors[color_count], linestyle='None', marker='s',
+				alpha = df_select['count'].values[c]/max_count)
+		else:
+			plt.errorbar(adjusted_location[c], df_select['fmerg'].values[c], yerr = df_select['fmerg_std'].values[c], 
+				color=colors[color_count], linestyle='None', marker='s')
+
+	
+
+	#adjusted_location = [1.3*(zcen - 0.14) + x for x in centers_mass]
+	#plt.scatter(adjusted_location, avgs, color=colors[color_count], label='$z = $'+str(zcen), marker='s')
+	#plt.errorbar(adjusted_location, avgs, yerr = stds, color=colors[color_count], linestyle='None', marker='s')
+
+	color_count+=1
+for boundary in bins_z:
+	plt.axvline(x = boundary, ls=':', color='black')
+
+leg = plt.legend()
+for lh in leg.legendHandles: 
+    lh.set_alpha(1)
+plt.xlabel(r'redshift')
+plt.ylabel(r'$f_{\mathrm{merg}}$')
+plt.ylim([0,1])
+plt.xlim([bins_z[0]-0.01,bins_z[-1]+0.01])
+if savefigs:
+	plt.savefig('../Figures/2D_hist_equal_bins_z_'+str(run)+'_'+suffix+'.png', dpi=1000)
+else:
+	plt.show()
+
+
 
 
 STOP

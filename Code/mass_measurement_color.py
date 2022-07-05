@@ -27,12 +27,15 @@ run = 'major_merger'
 name = 'color_complete'
 spacing_z = 0.02#'KB'#0.04
 completeness = 95
-red = 'z'
+red = 'z_spec'
 mass = 'log_stellar_mass_from_color'
 #red = 'z'
 suffix = str(spacing_z)+'_'+str(red)+'_'+str(mass)+'_completeness_'+str(completeness)
 plot_hist = False
 plot = False
+
+if os.path.exists(dir+'all_mass_color_complete_'+str(suffix)+'.txt'):
+	STOP
 
 if os.path.exists(dir+'all_mass_'+str(suffix)+'.txt'):
 	# already have the mass table saved

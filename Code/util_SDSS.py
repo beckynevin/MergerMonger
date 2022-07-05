@@ -58,9 +58,15 @@ def download_galaxy(ID, ra, dec, prefix_frames, size, remove=True):
       STOP
    size = u.Quantity((size,size), u.arcsec)#was 80,80
    wcs_a = WCS(im[0].header)
-
-   stamp_a = Cutout2D(im[0].data, obj_coords, size, wcs=wcs_a)#was image_a[0].data
-
+   try:
+      stamp_a = Cutout2D(np.ma.masked_invalid(im[0].data), obj_coords, size, wcs=wcs_a)#was image_a[0].data
+   except ValueError:
+      print(im[0].data)
+      plt.clf()
+      plt.imshow(im[0].data, norm=matplotlib.colors.LogNorm())
+      plt.colorbar()
+      plt.show()
+      STOP
    camera_data=(np.fliplr(np.rot90(stamp_a.data))/0.005)
    
 

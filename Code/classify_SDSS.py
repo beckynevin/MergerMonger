@@ -3,7 +3,7 @@
 The wrapper for creating the LDA_out tables for the fully SDSS dataset
 ~~~
 '''
-from MergerMonger import load_LDA_from_simulation, classify, classify_from_flagged
+import MergerMonger as MM
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -11,26 +11,31 @@ import pandas as pd
 from util_LDA import cross_term
 import os
 
-run = 'major_merger'
+run = 'major_merger_late'
+#run = 'minor_merger_postc_include_coal_1.0'
+#run = 'major_merger_late'
+verbose = True
 
-print(str(os.getcwd())+'../frames/')
+if verbose:
+	print(str(os.getcwd())+'../frames/')
 
-LDA,RFR, df = load_LDA_from_simulation(run,verbose=False)
+LDA,RFR, df = MM.load_LDA_from_simulation(run,verbose=verbose)
+#LDA, RFR, df = MM.load_LDA_from_simulation_sliding_time(0.5, run_parent, verbose=verbose)
+#LDA, RFR, df = MM.load_LDA_from_simulation_sliding_time_include_coal(1.0, run_parent, verbose=verbose)
 
+if verbose:
+	print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+	print('inputs', LDA[2])
+	print('coefficients', LDA[3])
+	print('intercept', LDA[4])
+	print('accuracy, precision, and recall for simulated galaxies [5-7]', LDA[5], LDA[6], LDA[7])
 
-
-print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Output from LDA~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print('inputs', LDA[2])
-print('coefficients', LDA[3])
-print('intercept', LDA[4])
-print('accuracy, precision, and recall for simulated galaxies [5-7]', LDA[5], LDA[6], LDA[7])
-
-print('Standardized means LDA[0]', LDA[0])
-print('standardized stds LDA[1]', LDA[1])
-print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print('~~~~~~~~~~~~~~~~~Output from RFR~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-print(RFR)
-print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+	print('Standardized means LDA[0]', LDA[0])
+	print('standardized stds LDA[1]', LDA[1])
+	print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+	print('~~~~~~~~~~~~~~~~~Output from RFR~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+	print(RFR)
+	print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
 # The output of this is in the format:
@@ -69,7 +74,10 @@ plt.show()
 type_gal = 'predictors'
 verbose='yes'
 
-LDA, p_merg, CDF = classify_from_flagged('../Tables/','../frames/', run, LDA, RFR, df, 10000, verbose=True, all = False, cut_flagged = True)
+#LDA, p_merg, CDF = MM.classify_from_flagged_interpretive_table('../Tables/','../frames/', run, LDA, RFR, df, 100, verbose=True, all = True, cut_flagged = False)
+
+LDA, p_merg, CDF = MM.classify_from_flagged('../Tables/','../frames/', run, LDA, RFR, df, 10000, 
+	verbose=True, all = True, cut_flagged = False)
 
 #LDA, p_merg, CDF = classify('../Tables/','../frames',type_gal, run, LDA, RFR, df, verbose=False)
     

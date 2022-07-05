@@ -8,6 +8,43 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import confusion_matrix
 
+# This is code from compare_mpmerg_to_full_population_CDF.py
+# But here for a list of p values
+def calculate_cdf(p_vals, p_list, percent):
+    # Define a histogram with spacing defined                                                                                                                
+    spacing = 1000 # this will be the histogram binning but also how finely sampled the CDF is                                                               
+    hist = np.histogram(p_vals, bins=spacing)
+
+    # Put this in continuous distribution form in order to calculate the CDF                                                                                 
+    hist_dist = scipy.stats.rv_histogram(hist)
+
+    # Find individual cdf values corresponding to a p_merg value                                                                                             
+    cdf_list = []
+    for p in p_list:
+        cdf_list.append(hist_dist.cdf(p))
+        
+
+    # Define the xs of this distribution                                                                                                                     
+    X = np.linspace(0, 1.0, spacing)
+
+    # Get all cdf values                                                                                                                                     
+    cdf_val = [hist_dist.cdf(x) for x in X]
+    # Find the x point at which the cdf value is 10% and 90% - 0.1 and 0.9 (can replace this with your own thresholds)                                       
+    idx_non, val_non = find_nearest(np.array(cdf_val), percent)
+    X_non = X[idx_non]
+
+    idx_merg, val_merg = find_nearest(np.array(cdf_val), 1 - percent)
+    X_merg =X[idx_merg]
+
+    print('p_merg value is ', X_non, 'when ',val_non,' of the full population has a lower p_merg value')
+    print('p_merg value is ', X_merg, 'when ',1-val_merg,' of the full population has a higher p_merg value')
+
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx, array[idx]
+
 def plot_confusion_matrix(cm, target_names, title, cmap=plt.cm.Blues):
     sns.set_style("dark")
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
@@ -33,7 +70,7 @@ def locate_max(a):
 
 def testAndTrainIndices(test_fold, Nfolds, folds):
 
-    print('finding test and train indices...')
+    #print('finding test and train indices...')
 
     train_folds = np.delete(np.arange(Nfolds), test_fold)
 
@@ -116,7 +153,8 @@ def run_RFR(df_merg, features_list, run, verbose):
     important_here = []
     for j in range(len(indices)):
         #if importances[indices[j]] - std[indices[j]] > 0:
-        print(indices[j], features_list[indices[j]])
+        if verbose:
+            print(indices[j], features_list[indices[j]])
         if importances[indices[j]] > random_value:# or importances[indices[j]] - std[indices[j]] > random_value - random_std:
             important_here.append(features_list[indices[j]])
         else:
@@ -126,7 +164,7 @@ def run_RFR(df_merg, features_list, run, verbose):
     return important_here, unin_here
 
 
-def run_RFC(df_merg, features_list, run, verbose):
+def run_RFC(df_merg, features_list,  verbose):
     # These are adjustable RFR parameters                                                                             
     Nfolds = 10
     Ndat = 5000
@@ -153,7 +191,7 @@ def run_RFC(df_merg, features_list, run, verbose):
         print('training fold 0')
     #make a random forest model:                                                                                      
     model = RandomForestClassifier(max_depth=10, random_state=42)
-    model.fit(train_features, train_labels)
+    model.fit(train_features, train_labels.ravel())
     if verbose:
         print('predicting...')
     # Predict on new data                                                                                             
@@ -173,7 +211,7 @@ def run_RFC(df_merg, features_list, run, verbose):
         # Plot the feature importances of the forest                                                                  
         plt.clf()
         plt.figure(figsize=(15,5))
-        plt.title("RFR Feature importances for "+str(run))
+        plt.title("RFR Feature importances")
         plt.bar(range(Nfeatures), importances[indices], yerr=std[indices], align="center", color='pink')
         plt.xticks(range(Nfeatures), indices)
         plt.xlim([-1, Nfeatures])
@@ -181,7 +219,6 @@ def run_RFC(df_merg, features_list, run, verbose):
 
         #plt.savefig('feature_importance_'+str(run)+'_rando.pdf')                                                     
 
-        print('Run ', run)
         print('Importance in Order ~~~~')
 
     # find the index of the random one:                                                                               
@@ -194,8 +231,9 @@ def run_RFC(df_merg, features_list, run, verbose):
     unin_here = []
     important_here = []
     for j in range(len(indices)):
-        #if importances[indices[j]] - std[indices[j]] > 0:                                                            
-        print(indices[j], features_list[indices[j]])
+        #if importances[indices[j]] - std[indices[j]] > 0:    
+        if verbose:                                                            
+            print(indices[j], features_list[indices[j]])
         if importances[indices[j]] > random_value:# or importances[indices[j]] - std[indices[j]] > random_value - random_std:                                                                                                              
             important_here.append(features_list[indices[j]])
         else:
@@ -298,7 +336,7 @@ def classify_sim(df, inputs_all, coef, inter, myr, myr_non):
 
 
 
-def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
+def run_LDA(df, priors_list,input_singular, myr, myr_non,
                       breakpoint, verbose):
     
     
@@ -320,7 +358,8 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
             ct_2.append(input_singular[i])
     
     inputs = input_singular + crossterms
-    print('input terms', inputs)
+    if verbose:
+        print('input terms', inputs)
     # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
     for j in range(len(crossterms)):
         
@@ -519,7 +558,7 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
                 
                 inputs.remove(thing[m])
             except ValueError:
-                #print('~~~RUning into troubles')
+                
                 #print('inputs', inputs)
                 #print('the thing to remove', thing[m])
                 continue
@@ -610,37 +649,36 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     splits=kf_choose[new_min_index]
     
     
-    #if verbose=='yes':
-    print(run,'&')
     
     # There has got to be a better way to write this that involves listing them in order of importance
     inds = abs(list_coef[new_min_index][0]).argsort()
     sortedinput = inputs_all[inds]
     
-    #if verbose=='yes':
-    print('sorted inputs', sortedinput)
-    print('coeff', list_coef[new_min_index][0][inds])
-    print('std', list_coef_std[new_min_index][0][inds])
+    if verbose:
+        print('sorted inputs', sortedinput)
+        print('coeff', list_coef[new_min_index][0][inds])
+        print('std', list_coef_std[new_min_index][0][inds])
     
-    #print out the first five coeff
-    for u in range(len(sortedinput)):
-        print(round(list_coef[new_min_index][0][inds][-u],1),'$\pm$',round(list_coef_std[new_min_index][0][inds][-u],1),' ',sortedinput[-u],' &')
+        #print out the first five coeff
+        for u in range(len(sortedinput)):
+            print(round(list_coef[new_min_index][0][inds][-u],1),'$\pm$',round(list_coef_std[new_min_index][0][inds][-u],1),' ',sortedinput[-u],' &')
 
-    print(round(float(list_inter[new_min_index][0]),1), '$\pm$', round(float(list_inter_std[new_min_index]),),'//')
+        print(round(float(list_inter[new_min_index][0]),1), '$\pm$', round(float(list_inter_std[new_min_index]),),'//')
     
     covar = list_covar[new_min_index]
     means_all_classes = list_means[new_min_index]
     
     master=list_master[new_min_index]
     
-    print('~~~Accuracy~~~')
-    print((master[1][1]+master[0][0])/(master[0][0]+master[1][0]+master[0][1]+master[1][1]))
-    print('~~~Precision~~~')
-    print(master[1][1]/(master[0][1]+master[1][1]))#TP/(TP+FP)
-    print('~~~Recall~~~')
-    print(master[1][1]/(master[1][0]+master[1][1]))#TP/(TP+FN)
-    print('~~~F1~~~')
-    print((2*master[1][1])/(master[0][1]+master[1][0]+2*master[1][1]))#2TP/(2TP+FP+FN)
+    if verbose:
+        print('~~~Accuracy~~~')
+        print((master[1][1]+master[0][0])/(master[0][0]+master[1][0]+master[0][1]+master[1][1]))
+        print('~~~Precision~~~')
+        print(master[1][1]/(master[0][1]+master[1][1]))#TP/(TP+FP)
+        print('~~~Recall~~~')
+        print(master[1][1]/(master[1][0]+master[1][1]))#TP/(TP+FN)
+        print('~~~F1~~~')
+        print((2*master[1][1])/(master[0][1]+master[1][0]+2*master[1][1]))#2TP/(2TP+FP+FN)
     
     A = (master[1][1]+master[0][0])/(master[0][0]+master[1][0]+master[0][1]+master[1][1])
     P = master[1][1]/(master[0][1]+master[1][1])
@@ -650,6 +688,8 @@ def run_LDA(run, df, priors_list,input_singular, myr, myr_non,
     if verbose:
         print('TPR', R)
         print('FPR', FPR)
+
+        
     
     # We have to figure out how many terms to include
     significant_term = []

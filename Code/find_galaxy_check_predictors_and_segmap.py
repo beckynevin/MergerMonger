@@ -1,3 +1,4 @@
+# I'm not entirely convinced find_galaxy doesn't do this all cleaner (it makes the statmorph check file)
 '''
 ~~~
 This code allows the user to input a single or list of galaxies by Object ID.
@@ -26,7 +27,7 @@ from util_LDA import calculate_cdf, find_nearest
 
 
 
-appellido = 'dave'
+appellido = 'dave_interp'
 
 # Get ID list instead from Dave's tables:
 fits_table = fits.open('../Tables/breakbrd_objids.fits')
@@ -58,6 +59,7 @@ df_predictors = df_predictors.astype({'ID': 'int64'})#.dtypes
 # Step 2: import the probability values for these galaxies
 
 df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags_leading_preds.txt', sep='\t')
+#df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags.txt', sep='\t')
 #print(df_LDA.columns, df_predictors.columns)
 df_LDA = df_LDA.astype({'ID': 'int64'})
 
@@ -104,6 +106,8 @@ print('appellido', appellido)
 
 # Hector's galaxies
 #ID_list = [1237661125071208589, 1237654654171938965, 1237651212287475940, 1237659325489742089, 1237651273490628809, 1237661852007596057, 1237657878077702182, 1237667912748957839, 1237662665888956491, 1237655504567926924, 0, 1237664673793245248, 1237653009194090657, 1237667212116492386, 1237660024524046409, 1237654949448646674, 1237656496169943280, 1237663784217804830, 1237673706113925406, 1237656567042539991, 1237653587947815102, 1237651191354687536, 1237661387069194275, 1237651226784760247, 1237658204508258428, 1237661957225119836, 1237653589018018166, 1237651251482525781, 1237658802034573341, 1237663457241268416, 1237663529718841406, 1237651272956641566, 1237667910601932987, 1237659326029365299, 1237661852538437650, 1237665549422952539, 1237659327099896118, 1237651212287672564, 1237666299480309878, 1237657856607649901, 1237654952670789707, 1237654949448450067, 1237660241386143913, 1237652899700998392, 1237664837002395706, 1237654626785821087, 1237654391639638190]
+ID_list = [1237673706113925406,1237660024524046409]
+
 print(len(ID_list))
 
 
@@ -289,9 +293,7 @@ for i in range(len(ID_list)):
             ax1.set_title('Image, flag = \n'+str(flag_name))
             ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][3],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][4],4))+
                 '\nCDF = '+str(round(cdf,4))+
-                '\n'+str(df_LDA.values[where_LDA][0][6])+
-                '\n'+str(df_LDA.values[where_LDA][0][8])+
-                '\n'+str(df_LDA.values[where_LDA][0][10]), 
+                '\n'+str(df_LDA.values[where_LDA][0][6])+'\n'+str(df_LDA.values[where_LDA][0][8])+'\n'+str(df_LDA.values[where_LDA][0][10]), 
                 xy=(0.03, 0.7),  xycoords='axes fraction',
             xytext=(0.03, 0.7), textcoords='axes fraction',
             bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')

@@ -40,8 +40,174 @@ def locate_min(a):
     return smallest, [index for index, element in enumerate(a)
                   if smallest == element]
 
+def load_LDA_from_simulation_sliding_time_include_coal(post_coal,  run,  verbose=True, plot=True):
+    """_summary_
 
-def load_LDA_from_simulation_sliding_time(post_coal, run, prefix_frames, verbose=True, plot=True):
+    Args:
+        post_coal (_type_): _description_
+        run (_type_): _description_
+        verbose (bool, optional): _description_. Defaults to True.
+        plot (bool, optional): _description_. Defaults to True.
+    """
+
+    feature_dict = {i:label for i,label in zip(
+                range(39),
+                  ('Counter_x',
+                  'Image',
+                  'class label',
+                  'Myr',
+                  'Viewpoint',
+                '# Bulges',
+                   'Sep',
+                   'Flux Ratio',
+                  'Gini',
+                  'M20',
+                  'Concentration (C)',
+                  'Asymmetry (A)',
+                  'Clumpiness (S)',
+                  'Sersic N',
+                  'Shape Asymmetry (A_S)',
+                  'Counter_y',
+                  'Delta PA',
+                              'v_asym',
+                            's_asym',
+                            'resids',
+                            'lambda_r',
+                            'epsilon',
+                            'A',
+                            'A_2',
+                            'deltapos',
+                            'deltapos2',
+                            'nspax','re',
+                            'meanvel','varvel','skewvel','kurtvel',
+                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
+
+    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A\
+_S)','random']
+
+
+    if run[0:12]=='major_merger':
+        priors=[0.9,0.1]#[0.75,0.25]]                                                                                 
+    else:
+        if run[0:12]=='minor_merger':
+            priors=[0.7,0.3]#[0.75,0.25]]                                                                             
+        else:
+            STOP
+
+    # Read in the the measured predictor values from the LDA table                                                 
+    # Load in the full table and then figure out where to draw the line
+
+    print('RUN', run)
+
+    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
+
+    print('length of df before deleting', len(df))
+
+    #Rename all of the kinematic columns (is this necessary?)                                                         
+    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
+             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
+              'varsig':'$\sigma_{\sigma}$',
+             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
+             'abskewsig':'$|h_{3,\sigma}|$',
+             'meansig':'$\mu_{\sigma}$',
+             'varvel':'$\sigma_{V}$'},
+    inplace=True)
+
+    df.columns = [l for i,l in sorted(feature_dict.items())]
+
+    df.dropna(how="all", inplace=True) # to drop the empty line at file-end                                           
+    df.dropna(inplace=True) # to drop the empty line at file-end      
+
+
+
+    # Define the coalescence point for the different 'Image' names:
+
+
+
+    print('time since coalescence where we are drawing the line', post_coal)
+   
+  
+    # Maybe just go through the whole dataframe and do this yourself:
+    
+    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] > (2.15 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] > (2.74 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] > (2.59 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] > (3.72 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] > (9.17 +post_coal)),0, df['class label'])
+
+    # Also have to make sure that if the post_coal is greater than 0.5 that everything less
+    # that remains but is labeled as a 1
+    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] < (2.15 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] < (2.74 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] < (2.59 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] < (3.72 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] < (9.17 +post_coal)),1, df['class label'])
+
+
+     
+    # Make sure you delete everything from before coalescence:
+    
+    # Get names of indexes that below to a given name and were formerly labeled as mergers and are before coal:
+    indexNames = df[ (df['Image']=='fg3_m12') & (df['Myr'] <2.15) & (df['class label'] ==1) ].index
+    # Delete these row indexes from dataFrame
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg1_m13') & (df['Myr'] <2.74) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m13') & (df['Myr'] <2.59) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m15') & (df['Myr'] <3.72) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m10') & (df['Myr'] <9.17) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    
+    print(df['class label'].value_counts())
+    
+    
+
+
+
+    myr=[]
+    myr_non=[]
+    for j in range(len(df)):
+        if df[['class label']].values[j][0]==0.0:
+            myr_non.append(df[['Myr']].values[j][0])
+        else:
+            myr.append(df[['Myr']].values[j][0])
+
+    if verbose:
+        print('myr that are considered merging', sorted(set(myr)))
+        print('myr that are nonmerging', sorted(set(myr_non)))
+
+    
+    
+    len_nonmerg = len(myr_non)
+    len_merg = len(myr)
+
+    myr_non=sorted(list(set(myr_non)))
+    myr=sorted(list(set(myr)))
+
+    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
+    output_LDA = run_LDA(df, priors,terms_RFR, myr, myr_non, 21,  verbose)
+
+
+
+    std_mean = output_LDA[0]
+    std_std = output_LDA[1]
+    inputs_all = output_LDA[2]
+
+
+
+    coeff = output_LDA[3]
+    inter = output_LDA[4]
+    LDA_ID = output_LDA[8]
+    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg    
+
+def load_LDA_from_simulation_sliding_time(post_coal,  run,  verbose=True, plot=True):
 
 
     feature_dict = {i:label for i,label in zip(
@@ -170,14 +336,17 @@ _S)','random']
     if verbose:
         print('myr that are considered merging', sorted(set(myr)))
         print('myr that are nonmerging', sorted(set(myr_non)))
+
+
+    
     len_nonmerg = len(myr_non)
     len_merg = len(myr)
 
     myr_non=sorted(list(set(myr_non)))
     myr=sorted(list(set(myr)))
 
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, run, verbose)
-    output_LDA = run_LDA(run, df, priors,terms_RFR, myr, myr_non, 21,  verbose)
+    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
+    output_LDA = run_LDA( df, priors,terms_RFR, myr, myr_non, 21,  verbose)
 
 
 
@@ -636,11 +805,11 @@ def load_LDA_from_simulation(run, verbose=True, plot=True):
     plt.show()
     '''
 
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, run, verbose)
+    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
     
 
-    output_LDA = run_LDA(run, df, priors, terms_RFR, myr, myr_non, 21,  verbose)
-   
+    output_LDA = run_LDA( df, priors, terms_RFR, myr, myr_non, 21,  verbose)
+    
     
 
     std_mean = output_LDA[0]
@@ -2697,13 +2866,13 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
     print('making table of LDA output for all galaxies.....')
     file_out = open(prefix+'LDA_out_all_SDSS_predictors_'+str(run)+'_flags.txt','w')
     file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'
-        +'Leading_term'+'\t'+'Leading_coef'+'low S/N'+'\t'+'outlier predictor'+'\n')
+        +'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\n')
     #+'Second_term'+'\t'+'Second_coef'+'\n')
 
     
 
     for j in range(len(X_gal)):
-        print(j)
+        #print(j)
         #print(X_gal[j])
 
         # this is an array of everything standardized
@@ -2741,9 +2910,13 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
             sorted_terms = terms[arr1inds[::-1]]
             sorted_coeff = coeffs[arr1inds[::-1]]
 
-
-            most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
-            most_influential_coeff = [sorted_coeff[0],sorted_coeff[1],sorted_coeff[2]]
+            try:
+                most_influential_term = [sorted_terms[0],sorted_terms[1],sorted_terms[2]]
+                most_influential_coeff = [sorted_coeff[0],sorted_coeff[1],sorted_coeff[2]]
+            except IndexError:
+                most_influential_term = [sorted_terms[0]]
+                most_influential_coeff = [sorted_coeff[0]]
+            
         else:
             merg = 0
             
@@ -2752,10 +2925,14 @@ def classify_from_flagged(prefix, prefix_frames, run, LDA, terms_RFR, df, number
             arr1inds = coeffs.argsort()
             sorted_terms = terms[arr1inds[::-1]]
             sorted_coeff = coeffs[arr1inds[::-1]]
+            try:
+                most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
+                most_influential_coeff = [sorted_coeff[-1],sorted_coeff[-2],sorted_coeff[-3]]
+            except IndexError:
+                most_influential_term = [sorted_terms[-1]]
+                most_influential_coeff = [sorted_coeff[-1]]
             
-            most_influential_term = [sorted_terms[-1],sorted_terms[-2],sorted_terms[-3]]
-            most_influential_coeff = [sorted_coeff[-1],sorted_coeff[-2],sorted_coeff[-3]]
-
+                
         file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(merg)+'\t'+str(round(LD1_gal,3))+'\t'+str(round(p_merg,3))+'\t'+str(round(p_nonmerg,3))+'\t'
             +most_influential_term[0]+'\t'+str(round(most_influential_coeff[0],1))+'\t'
             +str(df2[['low S/N']].values[j][0])+'\t'+str(df2[['outlier predictor']].values[j][0])+'\n')

@@ -28,14 +28,7 @@ from util_LDA import calculate_cdf, find_nearest
 
 # First, define the list of object IDs you want to run through the classification
 # These can either be from a list or imported from a table
-ID_list = [1237661465990201643,1237661951344312586,1237665530651345434,1237665571981689378,1237665571981689379]
-ID_list = [1237668649851945457, 1237668649851945458, 1237668569858375932,
- 1237674649386811408, 1237648703503138948, 1237648703503138949,
- 1237648703509758114, 1237648703510610056, 1237648703523389861,
- 1237674649923223726, 1237674649929318470, 1237648720699719806,
- 1237648704053444900, 1237648704054558887, 1237648720718463286,
- 1237648704067338299, 1237648704067338300, 1237648704067535666,
- 1237648704068387799, 1237648704068518352]
+
 # these are galaxyzoos that are not classified as mergers
 #ID_list = [1237661871347138764,1237662264322097387,1237662264325767706,1237662264848351296,1237667782823903325]
 
@@ -47,37 +40,74 @@ ID_list = [1237668649851945457, 1237668649851945458, 1237668569858375932,
 #RA_list = [118.074345115, 119.617127519, 258.548475763, 241.150984777, 114.096383278, 189.213252539, 120.087417603, 205.690424787, 246.255977023, 251.335933471, 331.12290045, 205.753337262, 316.841308073, 127.170800449, 46.2941968423, 234.541843983, 319.193098655, 46.6649126989, 111.733682055, 322.213310988, 127.178093813, 123.820325773, 217.629970676, 262.399282723, 173.537567139, 215.017906947, 119.486337418, 123.330544326, 171.400653635, 321.00791167, 118.184152672, 119.182151794, 206.627529147, 247.159333462, 169.513447059, 206.007949798, 241.271446954, 258.82741019, 46.7170694138, 171.657261919, 255.029869751, 233.968342684, 47.1429889739, 61.4532623945, 131.725410562, 114.695391123, 118.855393765]
 #dec_list = [19.5950803976, 37.7866245591, 57.9760977732, 43.8797876113, 39.4382798053, 45.6511702678, 26.613527298, 24.5900537916, 24.2631556488, 42.757790046, 12.4426263785, 36.1656555546, 11.0664208661, 17.5814003238, -1.07547036487, 57.6036530229, 11.0437407875, 0.0619768826479, 41.0266910782, -1.07011823351, 45.7425550277, 46.0752533433, 52.7071590288, 54.4944236725, 49.2545623779, 47.1213302326, 39.9933651629, 46.1471565611, 54.3825744827, -0.366323610281, 45.949276388, 44.8567085266, 22.7060191923, 39.551266027, 45.1130288476, 25.9411986626, 45.4429921738, 57.6587701679, -0.896544995426, 51.5730412626, 37.8395021377, 57.9026365222, 0.55093690996, -6.32383706666, 25.3700887716, 29.8912832677, 39.1860944299]
 
-ID_list = [1237665179521187863,1237661069252231265,1237665329864114245]
-ID_list = [1237661360224403465,1237654954277404992,1237654954818535766,1237655108382949463,1237655498675060981,1237657874863947953,1237658297907478930,1237654605873348857,1237654606407073899,1237654654178623691]
 
+ID_list = [1237657775542698092,
+ 1237655129839108147, 1237659330848817218, 1237656895066931656,
+ 1237674288607461402, 1237658802572558360, 1237655130376241254,
+ 1237655473967136890, 1237661386538614980, 1237662336796065949,
+ 1237654391639376175, 1237660024523849823, 1237664835392241744,
+ 1237651753456107524]
+
+ID_list = [1237654391642128470]
+
+# GZ mergers as non-mergers:
+ID_list = [1237648673993654418, 1237655550744527565, 1237674648853414113, 1237648702967513214, 1237671139870310556, 1237648703524176162, 1237648704041844890, 1237648704043089981, 1237648704067142300, 1237648704067142301, 1237648704067273097, 1237648704589987959, 1237648705133543652, 1237648705139572888, 1237674651535147100, 1237649918430675064, 1237656494580170993, 1237666091125309664, 1237653650771542160, 1237653651311952032]
+# GZ mergers as mergers:
+ID_list = [1237668649851945457, 1237668649851945458, 1237668569858375932, 1237674649386811408, 1237648703503138948, 1237648703503138949, 1237648703510610056, 1237648703523389861, 1237674649923223726, 1237674649929318470, 1237648704053444900, 1237648720718463286, 1237648704067338299, 1237648704067338300, 1237648704067535666, 1237648704068518352, 1237648704068649960, 1237648704068649961, 1237648704591167730, 1237648704594772379]
+# GZ spirals as mergers:
+ID_list = [1237668568247370051, 1237668568247370012, 1237668650389340599, 1237648673459667002, 1237655559866614390, 1237655549670654093, 1237668568784109875, 1237668568784110087, 1237668569321308424, 1237648704065765844, 1237648673994834641, 1237648673994965546, 1237648673994965546, 1237648673995096731, 1237648704066552032, 1237648673996473001, 1237648673996473042, 1237655554497315264, 1237648673997127724, 1237648674529804864]
+# GZ spirals as non-mergers:
+ID_list = [1237655693557170541, 1237648673456455904, 1237668649315008771, 1237668649315074455, 1237668649315205346, 1237668568247370040, 1237668649852076495, 1237668649852207363, 1237668568784437849, 1237668568784437611, 1237668568784503051, 1237668568784503170, 1237668650389340761, 1237668650926342749, 1237668650926342753, 1237668650926408199, 1237668569858638234, 1237668650926539340, 1237668569858703829, 1237668569858703926]
+# GZ ellipticals as mergers:
+#ID_list = [1237668648777941378, 1237668568784437728, 1237668568784437730, 1237668568784503189, 1237668650389340774, 1237668650926408139, 1237655549668229596, 1237648673459274392, 1237648673459405604, 1237655558793330808, 1237648721255334064, 1237648673993195770, 1237648673993392521, 1237668650926080045, 1237668569858507188, 1237668651463278988, 1237648673994637868, 1237648673994637589, 1237648673994637877, 1237648673994834323]
+# GZ ellipticals as non-mergers:
+#ID_list = [1237655693558153341, 1237655693558153619, 1237655693558153741, 1237668648777941094, 1237655549666525534, 1237655549666525341, 1237655549666525599, 1237655549666525282, 1237655549666525475, 1237655549666525565, 1237668649315008817, 1237648673456652659, 1237668649315140216, 1237668568247304508, 1237668568247370078, 1237668649852207403, 1237668568784306748, 1237668649852272973, 1237668568784372205, 1237668649852338537]
+
+ID_list = [1237663782592971113,1237664854190194720,1237662336256639070,1237662336261161190,1237666299481817126,1237653665787478127,1237659326566039633]
 # This is what you're going to use as a suffix for the names of the saved images
 appellido = 'breakbrd_objids'#'drpall-v3_1_1_objid'#'breakbrd_objids'#
 #appellido = 'AGNs'
-appellido = 'control'#'Control_Sample1_MaNGA_MPL7'#AGN1.1_MaNGA_MPL7
+appellido = 'AGN2_fails'#'control'#'Control_Sample1_MaNGA_MPL7'#AGN1.1_MaNGA_MPL7
+appellido = 'MaNGA_MPL11'
+appellido = 'control2'
+
+appellido = 'GZ_spirals_classified_as_nonmergers'
+appellido = 'julie_close'
 print('appellido is', appellido)
-fits = False
+load = False
+find_anyway = False
 
-if fits:
-    # Get ID list instead from Dave's tables:
-    fits_table = fits.open('../Tables/'+appellido+'.fits')
-        #drpall-v3_1_1_objid.fits')
+if load:
+    try:
+        print('loading in fits')
+        # Get ID list instead from Dave's tables:
+        fits_table = fits.open('../Tables/'+appellido+'.fits')
+            #drpall-v3_1_1_objid.fits')
 
-    ID_list = fits_table[1].data['objid']#[0:10]
-    print('IDs', ID_list)
-    print('length', len(ID_list))
-else:
-    data=pd.read_csv('../Tables/'+appellido+'.csv')#,  names=cols, skiprows=1, header=None)
+        
 
-    ID_list = data['objID'].values
+        ID_list = fits_table[1].data['objid']#[0:10]
+        print('IDs', ID_list)
+        print('length', len(ID_list))
+    except:
+        print('loading in CSV')
+        data=pd.read_csv('../Tables/'+appellido+'.csv')#,  names=cols, skiprows=1, header=None)
 
-    
+        ID_list = data['objID'].values
+
+        
 print('length of stuff to run', len(ID_list))
+
+print('ID_list', ID_list)
+
+
+
 
 
 
 # Define the sizes of the images and where your LDA and SDSS tables live:
 merger_type = 'major_merger'
-plot = False
+plot = True
 size = 80
 prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
 
@@ -92,20 +122,51 @@ if len(df_predictors.columns) ==15: #then you have to delete the first column wh
 # Change the type of the ID in predictors:
 df_predictors = df_predictors.astype({'ID': 'int64'})#.dtypes    
 
+print('length of predictors', len(df_predictors))
+
                                                                               
 
 
 # Import the probability values for all SDSS galaxies
 
-df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags_leading_preds.txt', sep='\t')
+df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags.txt', sep='\t')#_leading_preds
 #print(df_LDA.columns, df_predictors.columns)
 df_LDA = df_LDA.astype({'ID': 'int64'})
 
+print('length of LDA', len(df_LDA))
+print(df_LDA.columns)
+print(df_LDA['Leading_term'])
 
+
+
+'''
+# Merge the two tables together on ID
+
+ID_list_df = pd.DataFrame(ID_list.byteswap().newbyteorder(), columns=['ID'])
+
+print(ID_list_df)
+print(len(df_LDA))
+print(len(ID_list_df))
+print('length of merged', len(df_LDA.merge(ID_list_df, on='ID')))
+
+df_all = df_LDA.merge(ID_list_df.drop_duplicates(), on=['ID'], 
+                   how='right', indicator=True)
+print(df_all['_merge'].unique())
+print(df_all[df_all['_merge']=='right_only']['ID'].values)
+print('length of not in df_LDA', len(df_all[df_all['_merge']=='right_only']['ID'].values))
+
+STOP
+'''
 
 
 
 ra_dec_lookup = pd.read_csv('../Tables/five_sigma_detection_saturated_mode1_beckynevin.csv')
+
+print('overall len ra/dec', len(ra_dec_lookup))
+print('length where ra==0', len(ra_dec_lookup[ra_dec_lookup['ra']==0.0]))
+
+print(ra_dec_lookup)
+
 
 # Do this in a better way than a double for loop:
 RA_list = []
@@ -117,6 +178,16 @@ for j in range(len(ID_list)):
     except IndexError:
         RA_list.append(0)
         dec_list.append(0)
+
+
+print('length of RA_list', len(RA_list))
+
+
+
+
+
+
+
         
 '''
 print(RA_list)
@@ -178,6 +249,11 @@ cdf = hist_dist.cdf(threshold)
 print('cdf value for ', threshold, cdf)
 
 
+
+
+
+
+
 indices_preds = df_predictors.index
 
 
@@ -200,14 +276,22 @@ for i in range(len(ID_list)):
 
     
     where_LDA = np.where(np.array(df_LDA['ID'].values)==id)[0]
+
+    print('where LDA', where_LDA, where_LDA.size)
     
+
+
     #print('trying to find where preds', df_predictors.loc[df_predictors['ID']==id])
     
     condition = df_predictors["ID"] == id
     try:
         where_predictors = indices_preds[condition].values.tolist()[0]
     except:
-        continue
+        if find_anyway:
+            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+            print('no match but finding anyway')
+        else:
+            continue
 
     #print('where preds', where_predictors)
     '''
@@ -224,13 +308,18 @@ for i in range(len(ID_list)):
     
     # get the corresponding cdf value:
     try:
-        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][3])
+        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][4])
     except IndexError:
         # This means there was no match
-        continue
+        if find_anyway:
+            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+            print('no match but finding anyway')
+            cdf = 0
+        else:
+            continue
     cdf_list.append(cdf)
 
-    if where_LDA.size != 0:
+    if where_LDA.size != 0 or find_anyway == True:
 
         # so IF it exists, then go ahead and download it:
         
@@ -238,52 +327,65 @@ for i in range(len(ID_list)):
 
 
         if plot:
-            img = download_galaxy(id, ra, dec, prefix+'../frames/', size)
+            try:
+                img = download_galaxy(id, ra, dec, prefix+'../frames/', size)
+            except FileNotFoundError:
+                STOP
+                continue
 
             shape = np.shape(img)[0]
 
             print('getting ready for flags')
+            if find_anyway == False: # Then you have flag info already
+                flag = False
+                flag_name = []
 
-            flag = False
-            flag_name = []
-            if (df_predictors.values[where_predictors][11]==0) & (df_predictors.values[where_predictors][12]==0) & (df_predictors.values[where_predictors][13]==0):
-                flag_name.append('No flag')
+                if (df_predictors.values[where_predictors][11]==0) & (df_predictors.values[where_predictors][12]==0) & (df_predictors.values[where_predictors][13]==0):
+                    flag_name.append('No flag')
+                else:
+                    if df_predictors.values[where_predictors][11]==1:
+                        flag_name.append('low S/N')
+                    if df_predictors.values[where_predictors][12]==1:
+                        flag_name.append('outlier predictor')
+                    if df_predictors.values[where_predictors][13]==1:
+                        flag_name.append('segmap')
+                    flag = True
             else:
-                if df_predictors.values[where_predictors][11]==1:
-                    flag_name.append('low S/N')
-                if df_predictors.values[where_predictors][12]==1:
-                    flag_name.append('outlier predictor')
-                if df_predictors.values[where_predictors][13]==1:
-                    flag_name.append('segmap')
                 flag = True
+                flag_name = ['not run']
 
-
+            img = np.array(img)
             # Check if the file already exists:
             preds = get_predictors(id, img, prefix+'../', size)
+            print('preds', preds)
             try:
                 segmap = preds[1]
             except TypeError:
-                continue
-
-            if os.path.exists(prefix+'../Figures/ind_galaxies_classify/classification_'+str(id)+'_'+str(merger_type)+'_'+appellido+'.png'):
+                print('No segmap')
+                
+            '''
+            if os.path.exists(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/classification_'+str(id)+'.png'):
                 print('already have classification image')
             else:
-                plt.clf()
-                fig = plt.figure()
-                ax = fig.add_subplot(111)
-                ax.imshow(abs(img), norm=matplotlib.colors.LogNorm(vmax=10**5, vmin=10**(0.5)), 
-                    cmap='afmhot', interpolation='None')
+            '''
+            plt.clf()
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.imshow(abs(img), norm=matplotlib.colors.LogNorm(vmax=10**5, vmin=10**(0.5)), 
+                cmap='afmhot', interpolation='None')
 
-                
+            if preds is None:
+                print('no segmap')
+            else:
                 ax.contour(np.fliplr(np.rot90(preds[1])), levels=[0,1], colors='yellow')
-                #im2 = ax2.imshow(np.fliplr(np.rot90(preds[1])))
-                
-                if appellido == 'ABC':
+            #im2 = ax2.imshow(np.fliplr(np.rot90(preds[1])))
+            
+            if appellido == 'ABC':
 
-                    ax.annotate(ABC[counter_ABC],xy=(0.7,0.05),xycoords='axes fraction',
-                        color=gal_colors[counter_ABC], size=100)
-                    counter_ABC+=1
-
+                ax.annotate(ABC[counter_ABC],xy=(0.7,0.05),xycoords='axes fraction',
+                    color=gal_colors[counter_ABC], size=100)
+                counter_ABC+=1
+            if preds is None:
                 ax.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
                     r' M$_{20}$ = '+str(round(df_predictors.values[where_predictors][4],2))+
                     '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+
@@ -297,30 +399,54 @@ for i in range(len(ID_list)):
                 bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
             
                 
-                ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+
-                    '\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+
-                    '\nCDF = '+str(round(cdf,4)), xy=(0.03, 0.85),  xycoords='axes fraction',
-                xytext=(0.03, 0.85), textcoords='axes fraction',
+                ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][3],2))+
+                    '\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][4],4))+
+                    '\nCDF = '+str(round(cdf,4))+'\n'+str(df_LDA.values[where_LDA][0][6]), xy=(0.03, 0.8),  xycoords='axes fraction',
+                xytext=(0.03, 0.8), textcoords='axes fraction',
                 bbox=dict(boxstyle="round", fc="0.9"), color='black')
+            else:
+                ax.annotate('Gini = '+str(round(preds[2],2))+
+                    r' M$_{20}$ = '+str(round(preds[3],2))+
+                    '\nC = '+str(round(preds[4],2))+
+                    ' A = '+str(round(preds[5],2))+
+                    ' S = '+str(round(preds[6],2))+
+                    '\nn = '+str(round(preds[7],2))+
+                    r' A$_S$ = '+str(round(preds[8],2))+
+                    '\n<S/N> = '+str(round(preds[10],2)), 
+                    xy=(0.03, 0.05),  xycoords='axes fraction',
+                xytext=(0.03, 0.05), textcoords='axes fraction',
+                bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
 
-                
-                if flag:
-                    ax.annotate('Photometric Flag', xy=(0.8, 0.85),  xycoords='axes fraction',
-                xytext=(0.8, 0.85), textcoords='axes fraction',
+                ax.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][3],2))+
+                    '\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][4],4))+
+                    '\nCDF = '+str(round(cdf,4))+'\n'+str(df_LDA.values[where_LDA][0][6]), xy=(0.03, 0.8),  xycoords='axes fraction',
+                xytext=(0.03, 0.8), textcoords='axes fraction',
                 bbox=dict(boxstyle="round", fc="0.9"), color='black')
+            
                 
-                ax.set_title('ObjID = '+str(id))
-                ax.set_xticks([0, (shape - 1)/2, shape-1])
-                ax.set_xticklabels([-size/2, 0, size/2])
-                ax.set_yticks([0, (shape- 1)/2,shape-1])
-                ax.set_yticklabels([-size/2, 0,size/2])
-                ax.set_xlabel('Arcsec')
-                plt.savefig(prefix+'../Figures/ind_galaxies_classify/classification_'+str(id)+'_'+str(merger_type)+'_'+appellido+'.png', dpi=1000)
+                
 
+
+            
+            if flag:
+                ax.annotate('Photometric Flag \n '+str(flag_name), xy=(0.8, 0.85),  xycoords='axes fraction',
+            xytext=(0.8, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
+            
+            ax.set_title('ObjID = '+str(id))
+            ax.set_xticks([0, (shape - 1)/2, shape-1])
+            ax.set_xticklabels([-size/2, 0, size/2])
+            ax.set_yticks([0, (shape- 1)/2,shape-1])
+            ax.set_yticklabels([-size/2, 0,size/2])
+            ax.set_xlabel('Arcsec')
+            plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+str(appellido)+'/'+str(merger_type)+'/classification_'+str(id)+'.png', dpi=1000)
+
+            '''
             # Make a second plot that includes the segmentation map
             center_val = segmap[int(np.shape(segmap)[0]/2),int(np.shape(segmap)[1]/2)]
             # Need to make a list of all points on the edge of the map
             edges=np.concatenate([segmap[0,:-1], segmap[:-1,-1], segmap[-1,::-1], segmap[-2:0:-1,0]])
+            '''
 
             '''
             coord_list = []
@@ -352,63 +478,72 @@ for i in range(len(ID_list)):
             # 1 is not centered, 2 is on edge, 3 is both
             #if flag > 0: # this means its been flagged for something
             '''
+
+            '''
+            continue
             # Check if the figure already exists:
-            if os.path.exists(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'.png'):
+            if os.path.exists(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'.png') or find_anyway==True:
                 print('already made statmorph fig')
             
             else:
-                fig = plt.figure()
-                ax1 = fig.add_subplot(121)
-                im1 = ax1.imshow(abs(np.fliplr(np.rot90(preds[0]))), norm=matplotlib.colors.LogNorm())#, origin = 'lower'
-                ax1.set_title(str(merger_type)+'\nImage, flag = \n'+str(flag_name))
-                ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+
-                    '\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+
-                    '\nCDF = '+str(round(cdf,4)), 
-                    xy=(0.03, 0.75),  xycoords='axes fraction',
-                xytext=(0.03, 0.75), textcoords='axes fraction',
-                bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
+            '''
+            '''
+            fig = plt.figure()
+            ax1 = fig.add_subplot(121)
+            im1 = ax1.imshow(abs(np.fliplr(np.rot90(preds[0]))), norm=matplotlib.colors.LogNorm())#, origin = 'lower'
+            ax1.set_title(str(merger_type)+'\nImage, flag = \n'+str(flag_name))
+            ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+
+                '\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+
+                '\nCDF = '+str(round(cdf,4)), 
+                xy=(0.03, 0.75),  xycoords='axes fraction',
+            xytext=(0.03, 0.75), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
 
-                ax1.annotate(str(df_LDA.values[where_LDA][0][6])+' '+str(df_LDA.values[where_LDA][0][5])+
-                    '\n'+str(df_LDA.values[where_LDA][0][8])+' '+str(df_LDA.values[where_LDA][0][7])+
-                    '\n'+str(df_LDA.values[where_LDA][0][10])+' '+str(df_LDA.values[where_LDA][0][9]),
-                    xy=(0.03, 0.08),  xycoords='axes fraction',
-                xytext=(0.03, 0.08), textcoords='axes fraction',
-                bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
+            ax1.annotate(str(df_LDA.values[where_LDA][0][6])+' '+str(df_LDA.values[where_LDA][0][5])+
+                '\n'+str(df_LDA.values[where_LDA][0][8])+' '+str(df_LDA.values[where_LDA][0][7])+
+                '\n'+str(df_LDA.values[where_LDA][0][10])+' '+str(df_LDA.values[where_LDA][0][9]),
+                xy=(0.03, 0.08),  xycoords='axes fraction',
+            xytext=(0.03, 0.08), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
 
-                if flag:
-                    ax1.annotate('Photometric Flag', xy=(0.5, 0.85),  xycoords='axes fraction',
-                xytext=(0.5, 0.85), textcoords='axes fraction',
-                bbox=dict(boxstyle="round", fc="0.9"), color='black')
+            if flag:
+                ax1.annotate('Photometric Flag', xy=(0.5, 0.85),  xycoords='axes fraction',
+            xytext=(0.5, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
 
-                ax2 = fig.add_subplot(122)
-                im2 = ax2.imshow(np.fliplr(np.rot90(preds[1])))
-                ax2.scatter(np.shape(segmap)[0]/2,np.shape(segmap)[0]/2, color='red')
-                ax2.set_title('Segmap, <S/N> = '+str(round(preds[10],2)))
-                ax2.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
-                    ' M20 = '+str(round(df_predictors.values[where_predictors][4],2))+
-                    '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+
-                    '\nA = '+str(round(df_predictors.values[where_predictors][6],2))+
-                    '\nS = '+str(round(df_predictors.values[where_predictors][7],2))+
-                    '\nn = '+str(round(df_predictors.values[where_predictors][8],2))+
-                    '\nA_S = '+str(round(df_predictors.values[where_predictors][9],2)), 
-                    xy=(0.03, 0.55),  xycoords='axes fraction',
-                xytext=(0.03, 0.55), textcoords='axes fraction',
-                bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
-                ax1.set_xticks([0, (shape - 1)/2, shape-1])
-                ax1.set_xticklabels([-size/2, 0, size/2])
-                ax1.set_yticks([0, (shape- 1)/2,shape-1])
-                ax1.set_yticklabels([-size/2, 0,size/2])
-                ax1.set_xlabel('Arcsec')
-                ax2.set_xlabel('ObjID = '+str(id))
-                plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'.png', dpi=1000)
+            ax2 = fig.add_subplot(122)
+            im2 = ax2.imshow(np.fliplr(np.rot90(preds[1])))
+            ax2.scatter(np.shape(segmap)[0]/2,np.shape(segmap)[0]/2, color='red')
+            ax2.set_title('Segmap, <S/N> = '+str(round(preds[10],2)))
+            ax2.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
+                ' M20 = '+str(round(df_predictors.values[where_predictors][4],2))+
+                '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+
+                '\nA = '+str(round(df_predictors.values[where_predictors][6],2))+
+                '\nS = '+str(round(df_predictors.values[where_predictors][7],2))+
+                '\nn = '+str(round(df_predictors.values[where_predictors][8],2))+
+                '\nA_S = '+str(round(df_predictors.values[where_predictors][9],2)), 
+                xy=(0.03, 0.55),  xycoords='axes fraction',
+            xytext=(0.03, 0.55), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
+            ax1.set_xticks([0, (shape - 1)/2, shape-1])
+            ax1.set_xticklabels([-size/2, 0, size/2])
+            ax1.set_yticks([0, (shape- 1)/2,shape-1])
+            ax1.set_yticklabels([-size/2, 0,size/2])
+            ax1.set_xlabel('Arcsec')
+            ax2.set_xlabel('ObjID = '+str(id))
+            plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'.png', dpi=1000)
+            '''
+
             '''
             if flag:
                 flag_list.append(1)
             else:
                 flag_list.append(0)
             '''
-        index_save_LDA.append(where_LDA[0])
-        index_save_predictors.append(where_predictors)
+        else:
+            index_save_LDA.append(where_LDA[0])
+            index_save_predictors.append(where_predictors)
+            print('saving this because you didnt plot', where_LDA[0])
 
 index_save_LDA = np.array(index_save_LDA)
 index_save_predictors = np.array(index_save_predictors)
