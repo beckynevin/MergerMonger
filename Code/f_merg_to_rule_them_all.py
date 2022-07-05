@@ -1,3 +1,4 @@
+# testing github
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # This is to test if changing the bins changes the result
 # of the trends of f_merg with redshift and mass
