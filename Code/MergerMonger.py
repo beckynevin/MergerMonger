@@ -9,25 +9,14 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
-import math
 import numpy as np
 import pandas as pd
-from sklearn.metrics import confusion_matrix, classification_report, precision_score
-from sklearn.model_selection import train_test_split
 import seaborn as sns
-import itertools
-from sklearn import preprocessing
 import os
 from os import path
-import sklearn.metrics as metrics
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.model_selection import KFold
-from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import LabelEncoder
-from scipy.signal import argrelextrema
 from util_LDA import run_LDA, run_RFR, run_RFC, cross_term
 import scipy
-from util_SDSS import plot_individual, download_sdss_ra_dec_table, download_galaxy
+from util_SDSS import download_sdss_ra_dec_table, download_galaxy
 from util_smelter import get_predictors
 import random
 from astropy.io import fits
@@ -4588,8 +4577,7 @@ def classify_from_flagged_interpretive_table(prefix, prefix_frames, run, LDA, te
     file_out.close()
     return
 
-def classify_changing_priors_from_flagged(prefix, prefix_frames, 
-    run, LDA, terms_RFR, df, priors, number_run, 
+def classify_changing_priors_from_flagged(prefix, run, LDA, terms_RFR, priors, number_run, 
     verbose=False, run_all=True, cut_flagged=True):
 
     file_name = prefix+'change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'_'+str(priors)+'_flags_cut_segmap.txt'
@@ -4674,14 +4662,18 @@ def classify_changing_priors_from_flagged(prefix, prefix_frames,
         file_out = open(file_name,'w')
         
         file_out.write('ID'+'\t'+'p_merg'+'\n')
-        #    +'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\t'+'segmap'+'\n')
-        #Used to be, I was writing out all of this stuff:
-        #file_out.write('ID'+'\t'+'Classification'+'\t'+'LD1'+'\t'+'p_merg'+'\t'+'p_nonmerg'+'\t'
-        #    +'Leading_term'+'\t'+'Leading_coef'+'\t'+'low S/N'+'\t'+'outlier predictor'+'\t'+'segmap'+'\n')
-        #+'Second_term'+'\t'+'Second_coef'+'\n')
-
-
         
+             
+        
+        def convert_LDA_to_pmerg(LDA):
+            return 1/(1 + np.exp(-LDA))
+        
+        pmerg_gal_fast = [convert_LDA_to_pmerg(float(np.sum(LDA[3]*list((x - LDA[0])/LDA[1])) + LDA[4])) for x in X_gal]
+        
+        
+        print('pmerg fast', pmerg_gal_fast)
+
+        pmerg_gal_slow = []
 
         for j in range(len(X_gal)):
             #print(X_gal[j])
@@ -4696,12 +4688,16 @@ def classify_changing_priors_from_flagged(prefix, prefix_frames,
             # you can sub in LD1 and instead end up with p_merg = 1/(1+e^-LD1)
             
             p_merg = 1/(1 + np.exp(-LD1_gal))
+            pmerg_gal_slow.append(p_merg)
             
                 
                
             file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(round(p_merg,3))+'\n')
             
         file_out.close()
+        
+        print('pmerg slow', pmerg_gal_slow)
+        STOP
         
 
     return
