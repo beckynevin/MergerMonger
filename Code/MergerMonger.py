@@ -23,13 +23,99 @@ from astropy.io import fits
 import os
 import seaborn as sns
 import matplotlib.colors as colors
+import time
+
+def convert_LDA_to_pmerg(LDA):
+    return 1/(1 + np.exp(-LDA))
 
 def locate_min(a):
     smallest = min(a)
     return smallest, [index for index, element in enumerate(a)
                   if smallest == element]
+    
+def get_df(prefix, run):
+    feature_dict = {i:label for i,label in zip(
+                range(39),
+                  ('Counter_x',
+                  'Image',
+                  'class label',
+                  'Myr',
+                  'Viewpoint',
+                '# Bulges',
+                   'Sep',
+                   'Flux Ratio',
+                  'Gini',
+                  'M20',
+                  'Concentration (C)',
+                  'Asymmetry (A)',
+                  'Clumpiness (S)',
+                  'Sersic N',
+                  'Shape Asymmetry (A_S)',
+                  'Counter_y',
+                  'Delta PA',
+                            'v_asym',
+                            's_asym',
+                            'resids',
+                            'lambda_r',
+                            'epsilon',
+                            'A',
+                            'A_2',
+                            'deltapos',
+                            'deltapos2',
+                            'nspax','re',
+                            'meanvel','varvel','skewvel','kurtvel',
+                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
 
-def load_LDA_from_simulation_sliding_time_include_coal(post_coal,  run,  verbose=True, plot=True):
+    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)','random']
+
+
+    if run[0:12]=='major_merger':
+        priors=[0.9,0.1]#[0.75,0.25]]
+    else:
+        if run[0:12]=='minor_merger':
+            priors=[0.7,0.3]#[0.75,0.25]]
+        else:
+            STOP
+
+    # Read in the the measured predictor values from the LDA table
+    df = pd.io.parsers.read_csv(filepath_or_buffer = prefix + 'LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
+
+    #Rename all of the kinematic columns (is this necessary?)
+    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
+             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
+              'varsig':'$\sigma_{\sigma}$',
+             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
+             'abskewsig':'$|h_{3,\sigma}|$',
+             'meansig':'$\mu_{\sigma}$',
+             'varvel':'$\sigma_{V}$'},
+    inplace=True)
+    
+    df.columns = [l for i,l in sorted(feature_dict.items())]
+
+    df.dropna(how="all", inplace=True) # to drop the empty line at file-end
+    df.dropna(inplace=True) # to drop the empty line at file-end
+    if verbose:
+        print(df['class label'].value_counts())
+    myr=[]
+    myr_non=[]
+    for j in range(len(df)):
+        if df[['class label']].values[j][0]==0.0:
+            myr_non.append(df[['Myr']].values[j][0])
+        else:
+            myr.append(df[['Myr']].values[j][0])
+    if verbose:
+        print('myr that are considered merging', sorted(set(myr)))
+        print('myr that are nonmerging', sorted(set(myr_non)))
+
+
+    
+
+    myr_non=sorted(list(set(myr_non)))
+    myr=sorted(list(set(myr)))
+    
+    return df, myr, myr_non, features_list
+
+def get_df_simulation_sliding_time(prefix, post_coal, run):
     """_summary_
 
     Args:
@@ -71,26 +157,12 @@ def load_LDA_from_simulation_sliding_time_include_coal(post_coal,  run,  verbose
                             'meanvel','varvel','skewvel','kurtvel',
                   'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
 
-    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A\
-_S)','random']
+    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)','random']
 
+    run_short = str(run.split('_include_')[0])
 
-    if run[0:12]=='major_merger':
-        priors=[0.9,0.1]#[0.75,0.25]]                                                                                 
-    else:
-        if run[0:12]=='minor_merger':
-            priors=[0.7,0.3]#[0.75,0.25]]                                                                             
-        else:
-            STOP
+    df = pd.io.parsers.read_csv(filepath_or_buffer= prefix + 'LDA_merged_'+str(run_short)+'.txt',header=[0],sep='\t')
 
-    # Read in the the measured predictor values from the LDA table                                                 
-    # Load in the full table and then figure out where to draw the line
-
-    print('RUN', run)
-
-    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
-
-    print('length of df before deleting', len(df))
 
     #Rename all of the kinematic columns (is this necessary?)                                                         
     df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
@@ -102,7 +174,7 @@ _S)','random']
              'varvel':'$\sigma_{V}$'},
     inplace=True)
 
-    df.columns = [l for i,l in sorted(feature_dict.items())]
+    df.columns = [l for _,l in sorted(feature_dict.items())]
 
     df.dropna(how="all", inplace=True) # to drop the empty line at file-end                                           
     df.dropna(inplace=True) # to drop the empty line at file-end      
@@ -153,12 +225,6 @@ _S)','random']
     indexNames = df[ (df['Image']=='fg3_m10') & (df['Myr'] <9.17) & (df['class label'] ==1) ].index
     df.drop(indexNames , inplace=True)
 
-    
-    print(df['class label'].value_counts())
-    
-    
-
-
 
     myr=[]
     myr_non=[]
@@ -168,73 +234,22 @@ _S)','random']
         else:
             myr.append(df[['Myr']].values[j][0])
 
-    if verbose:
-        print('myr that are considered merging', sorted(set(myr)))
-        print('myr that are nonmerging', sorted(set(myr_non)))
-
-    
-    
-    len_nonmerg = len(myr_non)
-    len_merg = len(myr)
 
     myr_non=sorted(list(set(myr_non)))
     myr=sorted(list(set(myr)))
 
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
-    output_LDA = run_LDA(df, priors,terms_RFR, myr, myr_non, 21,  verbose)
+    return df, myr, myr_non, features_list
 
+def load_LDA_from_simulation_sliding_time_include_coal(post_coal,  run,  verbose=True, plot=True):
+    """_summary_
 
-
-    std_mean = output_LDA[0]
-    std_std = output_LDA[1]
-    inputs_all = output_LDA[2]
-
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
-    LDA_ID = output_LDA[8]
-    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg    
-
-def load_LDA_from_simulation_sliding_time(post_coal,  run,  verbose=True, plot=True):
-
-
-    feature_dict = {i:label for i,label in zip(
-                range(39),
-                  ('Counter_x',
-                  'Image',
-                  'class label',
-                  'Myr',
-                  'Viewpoint',
-                '# Bulges',
-                   'Sep',
-                   'Flux Ratio',
-                  'Gini',
-                  'M20',
-                  'Concentration (C)',
-                  'Asymmetry (A)',
-                  'Clumpiness (S)',
-                  'Sersic N',
-                  'Shape Asymmetry (A_S)',
-                  'Counter_y',
-                  'Delta PA',
-                              'v_asym',
-                            's_asym',
-                            'resids',
-                            'lambda_r',
-                            'epsilon',
-                            'A',
-                            'A_2',
-                            'deltapos',
-                            'deltapos2',
-                            'nspax','re',
-                            'meanvel','varvel','skewvel','kurtvel',
-                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
-
-    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A\
-_S)','random']
-
-
+    Args:
+        post_coal (_type_): _description_
+        run (_type_): _description_
+        verbose (bool, optional): _description_. Defaults to True.
+        plot (bool, optional): _description_. Defaults to True.
+    """
+    
     if run[0:12]=='major_merger':
         priors=[0.9,0.1]#[0.75,0.25]]                                                                                 
     else:
@@ -243,219 +258,32 @@ _S)','random']
         else:
             STOP
 
-    # Read in the the measured predictor values from the LDA table                                                 
-    # Load in the full table and then figure out where to draw the line
+    df, myr, myr_non, features_list = get_df_simulation_sliding_time(post_coal,run)
 
-    print('RUN', run)
-
-    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
-
-    #Rename all of the kinematic columns (is this necessary?)                                                         
-    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
-             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
-              'varsig':'$\sigma_{\sigma}$',
-             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
-             'abskewsig':'$|h_{3,\sigma}|$',
-             'meansig':'$\mu_{\sigma}$',
-             'varvel':'$\sigma_{V}$'},
-    inplace=True)
-
-    df.columns = [l for i,l in sorted(feature_dict.items())]
-
-    df.dropna(how="all", inplace=True) # to drop the empty line at file-end                                           
-    df.dropna(inplace=True) # to drop the empty line at file-end                                                      
-
-    # Define the coalescence point for the different 'Image' names:
+    terms_RFR, _ = run_RFC(df, features_list, verbose)
+    output_LDA = run_LDA(df, priors,terms_RFR, myr, myr_non, 21,  verbose)
 
 
+    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg    
 
-    print('time since coalescence where we are drawing the line', post_coal)
-   
-    #a_dataframe.loc[a_dataframe["B"] > 8, "B"] = "x"
-    #a_dataframe["B"] = np.where(a_dataframe["B"] > 8, "x", a_dataframe["B"])
-    # Maybe just go through the whole dataframe and do this yourself:
-    
-    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] > (2.15 +post_coal)),0, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] > (2.74 +post_coal)),0, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] > (2.59 +post_coal)),0, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] > (3.72 +post_coal)),0, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] > (9.17 +post_coal)),0, df['class label'])
+                                                   
 
-    # Also have to make sure that if the post_coal is greater than 0.5 that everything less
-    # that remains but is labeled as a 1
-    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] < (2.15 +post_coal)),1, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] < (2.74 +post_coal)),1, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] < (2.59 +post_coal)),1, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] < (3.72 +post_coal)),1, df['class label'])
-    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] < (9.17 +post_coal)),1, df['class label'])
+def load_LDA_from_simulation_changing_priors(prefix, run, priors, verbose=False, plot=False):
 
-    # Make sure you delete everything from before coalescence:
-    
-    # Get names of indexes that below to a given name and were formerly labeled as mergers and are before coal:
-    indexNames = df[ (df['Image']=='fg3_m12') & (df['Myr'] <2.16) & (df['class label'] ==1) ].index
-    # Delete these row indexes from dataFrame
-    df.drop(indexNames , inplace=True)
+    if 'postc' in run:
+        print('postc in run')
+        # From this get the post_coal value
+        post_coal = float(str(run.split('coal_')[1]).split('.')[0])
+        df, myr, myr_non, features_list = get_df_simulation_sliding_time(prefix, post_coal,run)
+    else:
+        df, myr, myr_non, features_list = get_df(prefix, run)
 
-    indexNames = df[ (df['Image']=='fg1_m13') & (df['Myr'] <2.75) & (df['class label'] ==1) ].index
-    df.drop(indexNames , inplace=True)
 
-    indexNames = df[ (df['Image']=='fg3_m13') & (df['Myr'] <2.60) & (df['class label'] ==1) ].index
-    df.drop(indexNames , inplace=True)
-
-    indexNames = df[ (df['Image']=='fg3_m15') & (df['Myr'] <3.73) & (df['class label'] ==1) ].index
-    df.drop(indexNames , inplace=True)
-
-    indexNames = df[ (df['Image']=='fg3_m10') & (df['Myr'] <9.18) & (df['class label'] ==1) ].index
-    df.drop(indexNames , inplace=True)
-
-    
-    print(df['class label'].value_counts())
+    terms_RFR, _ = run_RFC(df, features_list, verbose)
     
 
+    output_LDA = run_LDA(df, priors,terms_RFR, myr, myr_non, 21,  verbose)
 
-
-    myr=[]
-    myr_non=[]
-    for j in range(len(df)):
-        if df[['class label']].values[j][0]==0.0:
-            myr_non.append(df[['Myr']].values[j][0])
-        else:
-            myr.append(df[['Myr']].values[j][0])
-
-    if verbose:
-        print('myr that are considered merging', sorted(set(myr)))
-        print('myr that are nonmerging', sorted(set(myr_non)))
-
-
-    
-    len_nonmerg = len(myr_non)
-    len_merg = len(myr)
-
-    myr_non=sorted(list(set(myr_non)))
-    myr=sorted(list(set(myr)))
-
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
-    output_LDA = run_LDA( df, priors,terms_RFR, myr, myr_non, 21,  verbose)
-
-
-
-    std_mean = output_LDA[0]
-    std_std = output_LDA[1]
-    inputs_all = output_LDA[2]
-
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
-    LDA_ID = output_LDA[8]
-    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg                                                          
-
-def load_LDA_from_simulation_changing_priors(run, prefix_frames, priors, verbose=False, plot=False):
-
-
-    feature_dict = {i:label for i,label in zip(
-                range(39),
-                  ('Counter_x',
-                  'Image',
-                  'class label',
-                  'Myr',
-                  'Viewpoint',
-                '# Bulges',
-                   'Sep',
-                   'Flux Ratio',
-                  'Gini',
-                  'M20',
-                  'Concentration (C)',
-                  'Asymmetry (A)',
-                  'Clumpiness (S)',
-                  'Sersic N',
-                  'Shape Asymmetry (A_S)',
-                  'Counter_y',
-                  'Delta PA',
-                            'v_asym',
-                            's_asym',
-                            'resids',
-                            'lambda_r',
-                            'epsilon',
-                            'A',
-                            'A_2',
-                            'deltapos',
-                            'deltapos2',
-                            'nspax','re',
-                            'meanvel','varvel','skewvel','kurtvel',
-                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
-
-    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)','random']
-
-
-    
-
-    # Read in the the measured predictor values from the LDA table
-    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
-
-    #Rename all of the kinematic columns (is this necessary?)
-    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
-             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
-              'varsig':'$\sigma_{\sigma}$',
-             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
-             'abskewsig':'$|h_{3,\sigma}|$',
-             'meansig':'$\mu_{\sigma}$',
-             'varvel':'$\sigma_{V}$'},
-    inplace=True)
-    
-    df.columns = [l for i,l in sorted(feature_dict.items())]
-
-    df.dropna(how="all", inplace=True) # to drop the empty line at file-end
-    df.dropna(inplace=True) # to drop the empty line at file-end
-    if verbose:
-        print(df['class label'].value_counts())
-    myr=[]
-    myr_non=[]
-    for j in range(len(df)):
-        if df[['class label']].values[j][0]==0.0:
-            myr_non.append(df[['Myr']].values[j][0])
-        else:
-            myr.append(df[['Myr']].values[j][0])
-    if verbose:
-        print('myr that are considered merging', sorted(set(myr)))
-        print('myr that are nonmerging', sorted(set(myr_non)))
-
-
-    len_nonmerg = len(myr_non)
-    len_merg = len(myr)
-
-    myr_non=sorted(list(set(myr_non)))
-    myr=sorted(list(set(myr)))
-    
-    '''
-    # Fine. Investigate the distributions:
-    plt.clf()
-    # Investigate this dataframe
-    from pandas.plotting import scatter_matrix
-    scatter_matrix(df[features_list])
-    plt.show()
-
-    # What is going on with the Seris N
-    plt.clf()
-    plt.hist(df['Sersic N'].values, bins=100)
-    plt.show()
-    '''
-
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, run, verbose)
-    
-
-    output_LDA = run_LDA(run, df, priors,terms_RFR, myr, myr_non, 21,  verbose)
-   
-    
-
-    std_mean = output_LDA[0]
-    std_std = output_LDA[1]
-    inputs_all = output_LDA[2]
-
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
     LDA_ID = output_LDA[8]
 
     
@@ -534,18 +362,11 @@ def load_LDA_from_simulation_changing_priors(run, prefix_frames, priors, verbose
                 merg_p.append(p_merg_sim)
             
 
-        means_nonmerg = np.mean(df[inputs_all].values[indices_nonmerg], axis=0)
-        stds_nonmerg = np.std(df[inputs_all].values[indices_nonmerg], axis=0)
-
-        means_merg = np.mean(df[inputs_all].values[indices_merg], axis=0)
-        stds_merg = np.std(df[inputs_all].values[indices_merg], axis=0)
+        
 
 
 
-        dashed_line_x=np.linspace(-0.5,-3,100)
-        dashed_line_y=[-0.14*x + 0.33 for x in dashed_line_x]
-
-
+         
 
         merg_m20_LDA=np.array(merg_m20_LDA)
         merg_gini_LDA=np.array(merg_gini_LDA)
@@ -572,7 +393,7 @@ def load_LDA_from_simulation_changing_priors(run, prefix_frames, priors, verbose
 
     
 
-    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg
+    return output_LDA, terms_RFR, df
 
 # This is for playing around with changing the number of mergers in the validation set
 def load_LDA_from_simulation_changing_priors_changing_validation_set(run, prefix_frames, priors, verbose=True, plot=True):
@@ -646,34 +467,14 @@ def load_LDA_from_simulation_changing_priors_changing_validation_set(run, prefix
         print('myr that are nonmerging', sorted(set(myr_non)))
 
 
-    len_nonmerg = len(myr_non)
-    len_merg = len(myr)
 
     myr_non=sorted(list(set(myr_non)))
     myr=sorted(list(set(myr)))
     
-    '''
-    # Fine. Investigate the distributions:
-    plt.clf()
-    # Investigate this dataframe
-    from pandas.plotting import scatter_matrix
-    scatter_matrix(df[features_list])
-    plt.show()
-
-    # What is going on with the Seris N
-    plt.clf()
-    plt.hist(df['Sersic N'].values, bins=100)
-    plt.show()
-    '''
-
-    print(df)
-    print('class is 0 non-mergers', len(df[df['class label']==0]))
-    print('class is 1 mergers', len(df[df['class label']==1]))
-
-    print('Merger fraction actual', len(df[df['class label']==1])/(len(df)))
+    
     
 
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, run, verbose)
+    terms_RFR, _ = run_RFC(df, features_list, verbose)
 
 
     
@@ -682,15 +483,6 @@ def load_LDA_from_simulation_changing_priors_changing_validation_set(run, prefix
    
     
 
-    std_mean = output_LDA[0]
-    std_std = output_LDA[1]
-    inputs_all = output_LDA[2]
-
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
-    LDA_ID = output_LDA[8]
 
     
 
@@ -700,115 +492,27 @@ def load_LDA_from_simulation_changing_priors_changing_validation_set(run, prefix
 def load_LDA_from_simulation(run, verbose=True, plot=True):
 
 
-    feature_dict = {i:label for i,label in zip(
-                range(39),
-                  ('Counter_x',
-                  'Image',
-                  'class label',
-                  'Myr',
-                  'Viewpoint',
-                '# Bulges',
-                   'Sep',
-                   'Flux Ratio',
-                  'Gini',
-                  'M20',
-                  'Concentration (C)',
-                  'Asymmetry (A)',
-                  'Clumpiness (S)',
-                  'Sersic N',
-                  'Shape Asymmetry (A_S)',
-                  'Counter_y',
-                  'Delta PA',
-                            'v_asym',
-                            's_asym',
-                            'resids',
-                            'lambda_r',
-                            'epsilon',
-                            'A',
-                            'A_2',
-                            'deltapos',
-                            'deltapos2',
-                            'nspax','re',
-                            'meanvel','varvel','skewvel','kurtvel',
-                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
+    df, myr, myr_non, features_list = get_df(run)
+    
+    
 
-    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)','random']
-
-
+    terms_RFR, _ = run_RFC(df, features_list, verbose)
+    
     if run[0:12]=='major_merger':
-        priors=[0.9,0.1]#[0.75,0.25]]
+        priors=[0.9,0.1]#[0.75,0.25]]                                                                                 
     else:
         if run[0:12]=='minor_merger':
-            priors=[0.7,0.3]#[0.75,0.25]]
+            priors=[0.7,0.3]#[0.75,0.25]]                                                                             
         else:
             STOP
-
-    # Read in the the measured predictor values from the LDA table
-    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
-
-    #Rename all of the kinematic columns (is this necessary?)
-    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
-             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
-              'varsig':'$\sigma_{\sigma}$',
-             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
-             'abskewsig':'$|h_{3,\sigma}|$',
-             'meansig':'$\mu_{\sigma}$',
-             'varvel':'$\sigma_{V}$'},
-    inplace=True)
-    
-    df.columns = [l for i,l in sorted(feature_dict.items())]
-
-    df.dropna(how="all", inplace=True) # to drop the empty line at file-end
-    df.dropna(inplace=True) # to drop the empty line at file-end
-    if verbose:
-        print(df['class label'].value_counts())
-    myr=[]
-    myr_non=[]
-    for j in range(len(df)):
-        if df[['class label']].values[j][0]==0.0:
-            myr_non.append(df[['Myr']].values[j][0])
-        else:
-            myr.append(df[['Myr']].values[j][0])
-    if verbose:
-        print('myr that are considered merging', sorted(set(myr)))
-        print('myr that are nonmerging', sorted(set(myr_non)))
-
-
-    len_nonmerg = len(myr_non)
-    len_merg = len(myr)
-
-    myr_non=sorted(list(set(myr_non)))
-    myr=sorted(list(set(myr)))
-    
-    '''
-    # Fine. Investigate the distributions:
-    plt.clf()
-    # Investigate this dataframe
-    from pandas.plotting import scatter_matrix
-    scatter_matrix(df[features_list])
-    plt.show()
-
-    # What is going on with the Seris N
-    plt.clf()
-    plt.hist(df['Sersic N'].values, bins=100)
-    plt.show()
-    '''
-
-    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
     
 
     output_LDA = run_LDA( df, priors, terms_RFR, myr, myr_non, 21,  verbose)
     
     
 
-    std_mean = output_LDA[0]
-    std_std = output_LDA[1]
     inputs_all = output_LDA[2]
 
-
-
-    coeff = output_LDA[3]
-    inter = output_LDA[4]
     LDA_ID = output_LDA[8]
 
     
@@ -887,18 +591,11 @@ def load_LDA_from_simulation(run, verbose=True, plot=True):
                 merg_p.append(p_merg_sim)
             
 
-        means_nonmerg = np.mean(df[inputs_all].values[indices_nonmerg], axis=0)
-        stds_nonmerg = np.std(df[inputs_all].values[indices_nonmerg], axis=0)
-
-        means_merg = np.mean(df[inputs_all].values[indices_merg], axis=0)
-        stds_merg = np.std(df[inputs_all].values[indices_merg], axis=0)
 
 
 
         dashed_line_x=np.linspace(-0.5,-3,100)
-        dashed_line_y=[-0.14*x + 0.33 for x in dashed_line_x]
-
-
+        
 
         merg_m20_LDA=np.array(merg_m20_LDA)
         merg_gini_LDA=np.array(merg_gini_LDA)
@@ -4583,6 +4280,7 @@ def classify_changing_priors_from_flagged(prefix, run, LDA, terms_RFR, priors, n
     file_name = prefix+'change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'_'+str(priors)+'_flags_cut_segmap.txt'
     if os.path.exists(file_name):
         print('already exists')
+        return
     else:
         print('gonna make the file')
         #~~~~~~~
@@ -4640,8 +4338,6 @@ def classify_changing_priors_from_flagged(prefix, run, LDA, terms_RFR, priors, n
                 ct_1.append(input_singular[j])
                 ct_2.append(input_singular[i])
 
-        inputs = input_singular + crossterms
-
         # Now you have to construct a bunch of new rows to the df that include all of these cross-terms
         for j in range(len(crossterms)):
             
@@ -4650,26 +4346,18 @@ def classify_changing_priors_from_flagged(prefix, run, LDA, terms_RFR, priors, n
 
         X_gal = df2[LDA[2]].values
 
-
+        #start_time = time.time()
+        p_merg_gal_fast = [convert_LDA_to_pmerg(float(np.sum(LDA[3]*list((x - LDA[0])/LDA[1])) + LDA[4])) for x in X_gal]
+        
+        df2['p_merg'] = p_merg_gal_fast
+        
+        df2.to_csv(file_name, sep='\t')
+        
+        return
         
         
-        # Make a table with merger probabilities and other diagnostics:
-        if verbose:
-            print('making table of LDA output for all galaxies.....')
-
-    
-    
-        file_out = open(file_name,'w')
         
-        file_out.write('ID'+'\t'+'p_merg'+'\n')
-        
-             
-        
-        def convert_LDA_to_pmerg(LDA):
-            return 1/(1 + np.exp(-LDA))
-        
-        pmerg_gal_fast = [convert_LDA_to_pmerg(float(np.sum(LDA[3]*list((x - LDA[0])/LDA[1])) + LDA[4])) for x in X_gal]
-        
+        calc_time_fast = time.time()
         
         print('pmerg fast', pmerg_gal_fast)
 
@@ -4692,11 +4380,19 @@ def classify_changing_priors_from_flagged(prefix, run, LDA, terms_RFR, priors, n
             
                 
                
-            file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(round(p_merg,3))+'\n')
+            #file_out.write(str(df2[['ID']].values[j][0])+'\t'+str(round(p_merg,3))+'\n')
             
-        file_out.close()
+        #file_out.close()
+        
+        
+        calc_time_slow = time.time()
         
         print('pmerg slow', pmerg_gal_slow)
+        
+        print('timing')
+        print(" fast --- %s seconds ---" % (calc_time_fast - start_time))
+        print(" slow --- %s seconds ---" % (calc_time_slow - calc_time_fast))
+        
         STOP
         
 
@@ -4704,3 +4400,160 @@ def classify_changing_priors_from_flagged(prefix, run, LDA, terms_RFR, priors, n
 
 
 
+'''
+# So the below is if you dont include the coalescence timeslot as a 'post-coal' example, 
+# which I didn't end up doing in the paper
+def load_LDA_from_simulation_sliding_time(post_coal,  run,  verbose=True, plot=True):
+
+
+    feature_dict = {i:label for i,label in zip(
+                range(39),
+                  ('Counter_x',
+                  'Image',
+                  'class label',
+                  'Myr',
+                  'Viewpoint',
+                '# Bulges',
+                   'Sep',
+                   'Flux Ratio',
+                  'Gini',
+                  'M20',
+                  'Concentration (C)',
+                  'Asymmetry (A)',
+                  'Clumpiness (S)',
+                  'Sersic N',
+                  'Shape Asymmetry (A_S)',
+                  'Counter_y',
+                  'Delta PA',
+                              'v_asym',
+                            's_asym',
+                            'resids',
+                            'lambda_r',
+                            'epsilon',
+                            'A',
+                            'A_2',
+                            'deltapos',
+                            'deltapos2',
+                            'nspax','re',
+                            'meanvel','varvel','skewvel','kurtvel',
+                  'meansig','varsig','skewsig','kurtsig','abskewvel','abskewsig','random'))}
+
+    features_list = ['Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A\
+_S)','random']
+
+
+    if run[0:12]=='major_merger':
+        priors=[0.9,0.1]#[0.75,0.25]]                                                                                 
+    else:
+        if run[0:12]=='minor_merger':
+            priors=[0.7,0.3]#[0.75,0.25]]                                                                             
+        else:
+            STOP
+
+    # Read in the the measured predictor values from the LDA table                                                 
+    # Load in the full table and then figure out where to draw the line
+
+    print('RUN', run)
+
+    df = pd.io.parsers.read_csv(filepath_or_buffer='../Tables/LDA_merged_'+str(run)+'.txt',header=[0],sep='\t')
+
+    #Rename all of the kinematic columns (is this necessary?)                                                         
+    df.rename(columns={'kurtvel':'$h_{4,V}$','kurtsig':'$h_{4,\sigma}$','lambda_r':'\lambdare',
+             'epsilon':'$\epsilon$','Delta PA':'$\Delta$PA','A_2':'$A_2$',
+              'varsig':'$\sigma_{\sigma}$',
+             'meanvel':'$\mu_V$','abskewvel':'$|h_{3,V}|$',
+             'abskewsig':'$|h_{3,\sigma}|$',
+             'meansig':'$\mu_{\sigma}$',
+             'varvel':'$\sigma_{V}$'},
+    inplace=True)
+
+    df.columns = [l for i,l in sorted(feature_dict.items())]
+
+    df.dropna(how="all", inplace=True) # to drop the empty line at file-end                                           
+    df.dropna(inplace=True) # to drop the empty line at file-end                                                      
+
+    # Define the coalescence point for the different 'Image' names:
+
+
+
+    print('time since coalescence where we are drawing the line', post_coal)
+   
+    #a_dataframe.loc[a_dataframe["B"] > 8, "B"] = "x"
+    #a_dataframe["B"] = np.where(a_dataframe["B"] > 8, "x", a_dataframe["B"])
+    # Maybe just go through the whole dataframe and do this yourself:
+    
+    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] > (2.15 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] > (2.74 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] > (2.59 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] > (3.72 +post_coal)),0, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] > (9.17 +post_coal)),0, df['class label'])
+
+    # Also have to make sure that if the post_coal is greater than 0.5 that everything less
+    # that remains but is labeled as a 1
+    df['class label'] = np.where((df['Image']=='fg3_m12') & (df['Myr'] < (2.15 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg1_m13') & (df['Myr'] < (2.74 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m13') & (df['Myr'] < (2.59 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m15') & (df['Myr'] < (3.72 +post_coal)),1, df['class label'])
+    df['class label'] = np.where((df['Image']=='fg3_m10') & (df['Myr'] < (9.17 +post_coal)),1, df['class label'])
+
+    # Make sure you delete everything from before coalescence:
+    
+    # Get names of indexes that below to a given name and were formerly labeled as mergers and are before coal:
+    indexNames = df[ (df['Image']=='fg3_m12') & (df['Myr'] <2.16) & (df['class label'] ==1) ].index
+    # Delete these row indexes from dataFrame
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg1_m13') & (df['Myr'] <2.75) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m13') & (df['Myr'] <2.60) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m15') & (df['Myr'] <3.73) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    indexNames = df[ (df['Image']=='fg3_m10') & (df['Myr'] <9.18) & (df['class label'] ==1) ].index
+    df.drop(indexNames , inplace=True)
+
+    
+    print(df['class label'].value_counts())
+    
+
+
+
+    myr=[]
+    myr_non=[]
+    for j in range(len(df)):
+        if df[['class label']].values[j][0]==0.0:
+            myr_non.append(df[['Myr']].values[j][0])
+        else:
+            myr.append(df[['Myr']].values[j][0])
+
+    if verbose:
+        print('myr that are considered merging', sorted(set(myr)))
+        print('myr that are nonmerging', sorted(set(myr_non)))
+
+
+    
+    len_nonmerg = len(myr_non)
+    len_merg = len(myr)
+
+    myr_non=sorted(list(set(myr_non)))
+    myr=sorted(list(set(myr)))
+
+    terms_RFR, reject_terms_RFR = run_RFC(df, features_list, verbose)
+    output_LDA = run_LDA( df, priors,terms_RFR, myr, myr_non, 21,  verbose)
+
+
+
+    std_mean = output_LDA[0]
+    std_std = output_LDA[1]
+    inputs_all = output_LDA[2]
+
+
+
+    coeff = output_LDA[3]
+    inter = output_LDA[4]
+    LDA_ID = output_LDA[8]
+    return output_LDA, terms_RFR, df#, len_nonmerg, len_merg
+'''       
