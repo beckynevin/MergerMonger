@@ -24,7 +24,7 @@ dir = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
 
 # This is to load up the mass complete table:
 mass = 'log_stellar_mass_from_color'
-red = 'z'
+red = 'z_spec'
 spacing_z = 0.02
 complete = True
 completeness = 95
@@ -43,12 +43,12 @@ else:
 # so you can have various properties of each galaxy
 type_marginalized = '_flags_cut_segmap'
 type_gal = 'predictors'
-run = 'minor_merger'
+run = 'major_merger'
 # set this if you want to do a limited subset
 num = None
 savefigs = False
 # set this if you want to save the result
-save_df = True
+save_df = False
 JK_anyway = False
 
 

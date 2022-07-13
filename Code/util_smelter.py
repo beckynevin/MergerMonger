@@ -19,26 +19,18 @@ Import things, these first few lines are so that this version of python plays ni
 '''
 
 
-from scipy.ndimage import rotate
 import numpy as np
 from astropy.io import fits
 import os
 import matplotlib
 #matplotlib.use('agg') Use this if running on a supercomputer
 import matplotlib.pyplot as plt
-from astropy.cosmology import WMAP9 as cosmo
-from astropy.convolution import Gaussian2DKernel
-from astropy.convolution import convolve
+from astropy.cosmology import WMAP9
 import photutils
-from scipy import ndimage
 #import statmorph #credit to Vicente Rodriguez-Gomez ()
-import scipy
 import astropy.io.fits as pyfits
 import math
-import numpy.ma as ma
-from astropy.coordinates import SkyCoord
-from astropy.wcs import WCS
-from astropy import coordinates as coords
+
 from astropy import units as u
 from astropy.nddata import Cutout2D
 import scipy.ndimage as ndi
@@ -53,9 +45,6 @@ debugging and/or examining the morphology of a source in detail.
 # Licensed under a 3-Clause BSD License.
 
 import numpy as np
-import warnings
-import time
-import sys
 import scipy.signal
 import scipy.ndimage as ndi
 from astropy.io import fits
@@ -80,7 +69,7 @@ def rm_frame(pref, string):
     os.system('rm '+pref+string+'*')
     return
 
-def get_predictors(id, image, prefix, size, verbose=False, just_segmap=False):
+def get_predictors(id, image, prefix, verbose=False, just_segmap=False):
 
     num = 'troubleshoot_predictors'
 
@@ -89,8 +78,8 @@ def get_predictors(id, image, prefix, size, verbose=False, just_segmap=False):
     camera_data_sigma = np.sqrt(abs(image))
 
     '''This is vicente's method'''
-    threshold = photutils.detect_threshold(camera_data, nsigma=1.5)#, background=0.0)#was 1.5
-    npixels = 5  # minimum number of connected pixels was 5
+    threshold = photutils.detect_threshold(camera_data, nsigma=1.5)
+    npixels = 5  # minimum number of connected pixels 
     segm = photutils.detect_sources(camera_data, threshold, npixels)
 
 
@@ -132,17 +121,7 @@ def get_predictors(id, image, prefix, size, verbose=False, just_segmap=False):
 
     hdu.writeto(outfile, overwrite=True)
 
-    #continue
-    
-
-    
-    
-    '''Make a psf file for Galfit'''
-    #outfile = 'imaging/psf_'+str(sdss)+'.fits'
-    #hdu = fits.PrimaryHDU(psf)
-    #hdu_number = 0
-    #hdu.writeto(outfile, overwrite=True)
-    
+    # now make a psf file for galfit:
     
   
     outfile = prefix + 'imaging/out_convolved_'+str(id)+'.fits'
@@ -155,6 +134,8 @@ def get_predictors(id, image, prefix, size, verbose=False, just_segmap=False):
     hdr['EXPTIME']
     
     hdu.writeto(outfile, overwrite=True)
+    
+    # and an error file for galfit:
 
     outfile = prefix + 'imaging/out_sigma_convolved_'+str(id)+'.fits'
     hdu = fits.PrimaryHDU(abs(camera_data_sigma))
@@ -257,15 +238,15 @@ def get_predictors(id, image, prefix, size, verbose=False, just_segmap=False):
     '''Runs galfit inline and creates an output file'''
     # But first check if the file exists
     if os.path.isfile(prefix+'imaging/galfit.feedme_'+str(id)):
-        fileex=1
+        pass
     else:
         write_fails_txt(prefix, id, num, 'NoFeedme')
         rm_files(prefix, sdss)
         
         return 
     
-    g = run_galfit(str(id), prefix)
-    #STOP
+    run_galfit(str(id), prefix)
+    
     
     output=prefix+'imaging/out_'+str(id)+'.fits'
     try:

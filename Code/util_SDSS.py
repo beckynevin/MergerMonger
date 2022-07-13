@@ -65,8 +65,9 @@ def download_galaxy(ID, ra, dec, prefix_frames, size, remove=True):
       plt.clf()
       plt.imshow(im[0].data, norm=matplotlib.colors.LogNorm())
       plt.colorbar()
+      plt.title('failed for some reason')
       plt.show()
-      STOP
+      return 0
    camera_data=(np.fliplr(np.rot90(stamp_a.data))/0.005)
    
 

@@ -10,13 +10,7 @@ Requires: the LDA_out_* tables that have probability values and the SDSS_predict
 # import modules
 import pandas as pd
 import numpy as np
-from astropy.nddata import Cutout2D
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from astropy.wcs import WCS
-from astropy import coordinates as coords
 import astropy.io.fits as fits
-import os
 import matplotlib
 import matplotlib.pyplot as plt
 import scipy
@@ -64,6 +58,23 @@ ID_list = [1237655693557170541, 1237648673456455904, 1237668649315008771, 123766
 #ID_list = [1237655693558153341, 1237655693558153619, 1237655693558153741, 1237668648777941094, 1237655549666525534, 1237655549666525341, 1237655549666525599, 1237655549666525282, 1237655549666525475, 1237655549666525565, 1237668649315008817, 1237648673456652659, 1237668649315140216, 1237668568247304508, 1237668568247370078, 1237668649852207403, 1237668568784306748, 1237668649852272973, 1237668568784372205, 1237668649852338537]
 
 ID_list = [1237663782592971113,1237664854190194720,1237662336256639070,1237662336261161190,1237666299481817126,1237653665787478127,1237659326566039633]
+
+
+ID_list = [1237664836996104704,1237664835384771072,1237667108496737024,
+           1237657609109569792,1237660764300574976,1237655744016482560,
+           1237661382772195584,1237661381698781440,1237658206122278912,
+           1237667443511591168,1237659154219532544,1237655503499756032,
+           1237667211583225856,1237660635461779456,1237661850933067776,
+           1237657775543746816,1237657775006482688,1237664854713565440,
+           1237661387607572480,1237678617939280384,1237663787417338112,
+           1237663530794811648,1237657877003370752,1237667324334571776,
+           1237667442974392320,1237664667890614528,1237657858220032000,
+           1237673808654107136,1237664094509531392]
+ID_list = [1237654390032629943,1237661464918688114,1237664667887534206]
+
+ID_list = [1237659326029365299,1237663529718841406,1237654654171938965]
+
+
 # This is what you're going to use as a suffix for the names of the saved images
 appellido = 'breakbrd_objids'#'drpall-v3_1_1_objid'#'breakbrd_objids'#
 #appellido = 'AGNs'
@@ -73,9 +84,11 @@ appellido = 'control2'
 
 appellido = 'GZ_spirals_classified_as_nonmergers'
 appellido = 'julie_close'
+appellido = 'radio_AGN_hector'
 print('appellido is', appellido)
 load = False
 find_anyway = False
+recalc_preds = False
 
 if load:
     try:
@@ -108,7 +121,7 @@ print('ID_list', ID_list)
 # Define the sizes of the images and where your LDA and SDSS tables live:
 merger_type = 'major_merger'
 plot = True
-size = 80
+size = 200
 prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
 
 # Now import the tables of predictor values and LDA values
@@ -132,10 +145,37 @@ print('length of predictors', len(df_predictors))
 df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags.txt', sep='\t')#_leading_preds
 #print(df_LDA.columns, df_predictors.columns)
 df_LDA = df_LDA.astype({'ID': 'int64'})
-
+'''
 print('length of LDA', len(df_LDA))
 print(df_LDA.columns)
 print(df_LDA['Leading_term'])
+
+ID_list_df = pd.DataFrame(ID_list, columns=['ID'])
+ID_list_df.astype({'ID': 'int64'})
+merged = df_LDA.merge(ID_list_df, on='ID')
+print(merged)
+
+print(ID_list_df['ID'])
+print(df_LDA['ID'])
+
+
+
+
+# Okay maybe try to cross-reference with dr7:
+# ^its not this
+matching = pd.io.parsers.read_csv(prefix + 'classifications_by_objid/classifications_out_all_dr7_dr8_crossmatch_MaNGA_MPL11_objid.txt', sep = '\t')
+print(matching)
+print(matching.columns)
+
+merged_dr7 = ID_list_df.merge(matching, left_on = 'ID', right_on = 'objID')
+
+print()
+
+print(merged_dr7)
+STOP
+
+'''
+
 
 
 
@@ -160,7 +200,7 @@ STOP
 
 
 
-ra_dec_lookup = pd.read_csv('../Tables/five_sigma_detection_saturated_mode1_beckynevin.csv')
+ra_dec_lookup = pd.read_csv(prefix + 'five_sigma_detection_saturated_mode1_beckynevin.csv')
 
 print('overall len ra/dec', len(ra_dec_lookup))
 print('length where ra==0', len(ra_dec_lookup[ra_dec_lookup['ra']==0.0]))
@@ -278,6 +318,10 @@ for i in range(len(ID_list)):
     where_LDA = np.where(np.array(df_LDA['ID'].values)==id)[0]
 
     print('where LDA', where_LDA, where_LDA.size)
+    print(df_LDA.columns)
+    
+    print(df_LDA.values[where_LDA][0])
+    
     
 
 
@@ -292,8 +336,9 @@ for i in range(len(ID_list)):
             print('no match but finding anyway')
         else:
             continue
-
-    #print('where preds', where_predictors)
+    print(df_predictors.columns)
+    print('where preds', df_predictors.values[where_predictors])
+   
     '''
 
     try:
@@ -385,7 +430,7 @@ for i in range(len(ID_list)):
                 ax.annotate(ABC[counter_ABC],xy=(0.7,0.05),xycoords='axes fraction',
                     color=gal_colors[counter_ABC], size=100)
                 counter_ABC+=1
-            if preds is None:
+            if preds is None or recalc_preds == False:
                 ax.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
                     r' M$_{20}$ = '+str(round(df_predictors.values[where_predictors][4],2))+
                     '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+

@@ -33,7 +33,7 @@ def locate_min(a):
     return smallest, [index for index, element in enumerate(a)
                   if smallest == element]
     
-def get_df(prefix, run):
+def get_df(prefix, run, verbose=False):
     feature_dict = {i:label for i,label in zip(
                 range(39),
                   ('Counter_x',
