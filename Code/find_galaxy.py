@@ -74,6 +74,7 @@ ID_list = [1237654390032629943,1237661464918688114,1237664667887534206]
 
 ID_list = [1237659326029365299,1237663529718841406,1237654654171938965]
 
+prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/'
 
 # This is what you're going to use as a suffix for the names of the saved images
 appellido = 'breakbrd_objids'#'drpall-v3_1_1_objid'#'breakbrd_objids'#
@@ -85,8 +86,9 @@ appellido = 'control2'
 appellido = 'GZ_spirals_classified_as_nonmergers'
 appellido = 'julie_close'
 appellido = 'radio_AGN_hector'
+appellido = 'AGN2'
 print('appellido is', appellido)
-load = False
+load = True
 find_anyway = False
 recalc_preds = False
 
@@ -94,7 +96,7 @@ if load:
     try:
         print('loading in fits')
         # Get ID list instead from Dave's tables:
-        fits_table = fits.open('../Tables/'+appellido+'.fits')
+        fits_table = fits.open(prefix + 'Tables/'+appellido+'.fits')
             #drpall-v3_1_1_objid.fits')
 
         
@@ -104,7 +106,7 @@ if load:
         print('length', len(ID_list))
     except:
         print('loading in CSV')
-        data=pd.read_csv('../Tables/'+appellido+'.csv')#,  names=cols, skiprows=1, header=None)
+        data=pd.read_csv(prefix + 'Tables/'+appellido+'.csv')#,  names=cols, skiprows=1, header=None)
 
         ID_list = data['objID'].values
 
@@ -121,12 +123,12 @@ print('ID_list', ID_list)
 # Define the sizes of the images and where your LDA and SDSS tables live:
 merger_type = 'major_merger'
 plot = True
-size = 200
-prefix = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
+size = 80
+
 
 # Now import the tables of predictor values and LDA values
 
-df_predictors = pd.io.parsers.read_csv(prefix+'SDSS_predictors_all_flags_plus_segmap.txt', sep='\t')
+df_predictors = pd.io.parsers.read_csv(prefix+'Tables/SDSS_predictors_all_flags_plus_segmap.txt', sep='\t')
 #df_predictors.columns = ['ID','Sep','Flux Ratio',  'Gini','M20','Concentration (C)','Asymmetry (A)','Clumpiness (S)','Sersic N','Shape Asymmetry (A_S)', 'Sersic AR', 'S/N', 'Sersic N Statmorph', 'A_S Statmorph']
 
 if len(df_predictors.columns) ==15: #then you have to delete the first column which is an empty index
@@ -142,7 +144,7 @@ print('length of predictors', len(df_predictors))
 
 # Import the probability values for all SDSS galaxies
 
-df_LDA = pd.io.parsers.read_csv(prefix+'LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags.txt', sep='\t')#_leading_preds
+df_LDA = pd.io.parsers.read_csv(prefix+'Tables/LDA_out_all_SDSS_predictors_'+str(merger_type)+'_flags.txt', sep='\t')#_leading_preds
 #print(df_LDA.columns, df_predictors.columns)
 df_LDA = df_LDA.astype({'ID': 'int64'})
 '''
@@ -200,7 +202,7 @@ STOP
 
 
 
-ra_dec_lookup = pd.read_csv(prefix + 'five_sigma_detection_saturated_mode1_beckynevin.csv')
+ra_dec_lookup = pd.read_csv(prefix + 'Tables/five_sigma_detection_saturated_mode1_beckynevin.csv')
 
 print('overall len ra/dec', len(ra_dec_lookup))
 print('length where ra==0', len(ra_dec_lookup[ra_dec_lookup['ra']==0.0]))
@@ -373,7 +375,7 @@ for i in range(len(ID_list)):
 
         if plot:
             try:
-                img = download_galaxy(id, ra, dec, prefix+'../frames/', size)
+                img = download_galaxy(id, ra, dec, prefix+'frames/', size)
             except FileNotFoundError:
                 STOP
                 continue
@@ -623,7 +625,7 @@ df_merged = df_LDA_save.merge(df_predictors_save, on='ID')
 print(df_merged)
 
 df_merged.to_csv(prefix+'classifications_by_objid/classification_out_and_predictors_'+str(merger_type)+'_'+appellido+'.txt', sep='\t')
-STOP        
+        
         
 	
 		
