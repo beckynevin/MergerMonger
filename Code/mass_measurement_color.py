@@ -27,7 +27,7 @@ run = 'major_merger'
 name = 'color_complete'
 spacing_z = 0.02#'KB'#0.04
 completeness = 95
-red = 'z_spec'
+red = 'z'
 mass = 'log_stellar_mass_from_color'
 #red = 'z'
 suffix = str(spacing_z)+'_'+str(red)+'_'+str(mass)+'_completeness_'+str(completeness)
@@ -35,7 +35,7 @@ plot_hist = False
 plot = False
 
 if os.path.exists(dir+'all_mass_color_complete_'+str(suffix)+'.txt'):
-	STOP
+	pass
 
 if os.path.exists(dir+'all_mass_'+str(suffix)+'.txt'):
 	# already have the mass table saved
@@ -341,7 +341,7 @@ if plot_hist:
 	plt.xlabel(mass)
 	plt.title(f'Mass completeness limits for {completeness}% completeness')
 	plt.show()
-	STOP	
+		
 
 table_above_limit = pd.concat(select_list)
 
@@ -372,6 +372,8 @@ plt.scatter(centers_z, M_lim_list, s=10.0, color='#F87060')
 plt.ylim([7,13.5])
 plt.xlim([0,0.4])
 plt.plot(centers_z, M_lim_list, color='#F87060')
+plt.xlabel(r'$z$')
+plt.ylabel('log stellar mass')
 plt.show()
 
 plt.clf()
@@ -396,6 +398,8 @@ plt.scatter(centers_z, M_lim_list, s=10.0, color='#F87060')
 plt.ylim([7,13.5])
 plt.xlim([0,0.4])
 plt.plot(centers_z, M_lim_list, color='#F87060')
+plt.xlabel(r'$z$')
+plt.ylabel('log stellar mass')
 plt.show()
 
 

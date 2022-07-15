@@ -23,12 +23,13 @@ dir = '/Users/rebeccanevin/Documents/CfA_Code/MergerMonger-dev/Tables/'
 
 
 # This is to load up the mass complete table:
+ack = False # option whether to use ackermann cross-matches
 mass = 'log_stellar_mass_from_color'
-red = 'z_spec'
+red = 'z'
 spacing_z = 0.02
 complete = True
 completeness = 95
-nbins_mass = 20
+nbins_mass = 15
 suffix = str(spacing_z)+'_'+str(red)+'_'+str(mass)+'_completeness_'+str(completeness)
 
 
@@ -43,33 +44,29 @@ else:
 # so you can have various properties of each galaxy
 type_marginalized = '_flags_cut_segmap'
 type_gal = 'predictors'
-run = 'major_merger'
+run = 'minor_merger_postc_include_coal_1.0'
 # set this if you want to do a limited subset
 num = None
 savefigs = False
 # set this if you want to save the result
-save_df = False
+save_df = True
 JK_anyway = False
 
-
-# The below are flags for doing additional S/N
-# or B/T cuts
 s_n_cut = False
-B_T_cut = False
-#BT = '0.5_to_1.0_'
-if s_n_cut:
-    low_s_n = 15
-    high_s_n = 50000
-    add_on_binned_table = 's_n_'+str(low_s_n)+'_to_'+str(high_s_n)
-    
-else:
-    add_on_binned_table = ''
+s_n_cut_low = 50
+s_n_cut_high = 50000
 
+b_t_cut = False
+b_t_cut_low = 0.2
+b_t_cut_high = 0.3
 
-if complete:
-    table_name = dir + 'f_merg_'+str(run)+'_'+str(suffix)+'_mass_bins_'+str(nbins_mass)+'_'+str(add_on_binned_table)+'_flags.csv'
+if ack:
+    table_name = dir + 'f_merg_'+str(run)+'_'+str(suffix)+'_mass_bins_'+str(nbins_mass)+'_ack_flags.csv'
 else:
-    table_name = dir + 'f_merg_'+str(run)+'_'+str(suffix)+'_incomplete_mass_bins_'+str(nbins_mass)+'_'+str(add_on_binned_table)+'_flags.csv'
+    if complete:
+        table_name = dir + 'f_merg_'+str(run)+'_'+str(suffix)+'_mass_bins_'+str(nbins_mass)+'_flags.csv'
+    else:
+        table_name = dir + 'f_merg_'+str(run)+'_'+str(suffix)+'_incomplete_mass_bins_'+str(nbins_mass)+'_flags.csv'
     
 if os.path.exists(table_name) and save_df:
     print('table already exists do you want to oversave?')
@@ -93,6 +90,10 @@ if len(df_LDA) != len(df_predictors):
 # First clean this so that there's no segmap flags
 df_predictors_clean = df_predictors[(df_predictors['low S/N'] ==0) & (df_predictors['outlier predictor']==0) & (df_predictors['segmap']==0)]
 
+if s_n_cut:
+    df_predictors_clean = df_predictors_clean[(df_predictors_clean['S/N'] > s_n_cut_low) & (df_predictors_clean['S/N'] < s_n_cut_high)]
+    print('length after s_n_cut', len(df_predictors_clean))
+
 clean_LDA = df_LDA[df_LDA['ID'].isin(df_predictors_clean['ID'].values)]
 
 if complete:
@@ -113,6 +114,11 @@ else:
     masstable = masstable[masstable['log_stellar_mass_from_color'] < 13]
     masstable = masstable[['objID',
     'z','log_stellar_mass_from_color']]
+
+if b_t_cut:
+    masstable = masstable[(masstable['B/T'] > b_t_cut_low) & (masstable['B/T'] < b_t_cut_high)]
+    print('length after b_t_cut', len(masstable))
+    #STOP
 
 
 
@@ -141,25 +147,6 @@ else:
 print('len merged with mendel', len(final_merged))
 
 
-if s_n_cut:
-    # Then cut by S/N
-    print('length before S/N cut', len(final_merged))
-
-    '''
-    # figure out where to bin
-    cats_s_n, bins_s_n = pd.qcut(final_merged['S/N'], q=3, retbins=True, precision = 1)
-    print('cats s/n', cats_s_n)
-    print('bins s/n', bins_s_n)
-    STOP
-    '''
-
-
-    final_merged = final_merged[(final_merged['S/N'] > low_s_n) & (final_merged['S/N'] < high_s_n)]
-
-    print('length after S/N cut', len(final_merged))
-
-    
-
 
 
 
@@ -177,6 +164,30 @@ else:
     final_merged = final_merged.dropna()
 print('length after dropping Nans', len(final_merged))
 
+
+
+if ack:
+    # Next import the ackermann sample and get it into 
+    #cols = ['dr7objid','z','logMt','b_logMt','B_logMt','logMb','b_logMb','B_logMb','logMd','b_logMd','B_logMd','zmin','zmax','PpS','type','dBD']
+    ack_table = pd.io.parsers.read_csv(filepath_or_buffer=dir+'ackermann_2018.csv')#, delim_whitespace=True)
+    # Delte all rows that have Nans
+    ack_table = ack_table.dropna()
+
+    crossmatch = pd.io.parsers.read_csv(filepath_or_buffer=dir+'crossmatch_dr8_dr7_beckynevin.csv',sep=',', header=[0])
+    # columns are: 'objID', 'dr7objid'
+
+
+    merged_ack = ack_table.merge(crossmatch, left_on = 'objid', right_on='dr7objid')[['objID','p_merger_0','p_merger_1','p_merger_2','p_merger_3']]
+    merged_ack['p_merger_avg'] = merged_ack[['p_merger_0', 'p_merger_1','p_merger_2','p_merger_3']].mean(axis=1)
+    #np.nanmean([merged_ack['p_merger_0'],merged_ack['p_merger_1'],merged_ack['p_merger_2'],merged_ack['p_merger_3']])
+    
+    final_merged = final_merged.merge(merged_ack, left_on = 'ID', right_on='objID')
+    print('len merged ours ack', len(final_merged))
+    try:
+        final_merged['z'] = final_merged['z_x']
+    except KeyError:
+        print(final_merged.columns)
+    
 
 
 
@@ -223,6 +234,7 @@ if save_df:
     plt.ylabel('log stellar mass')
     plt.xlabel(r'$z$')
     
+    
     # first go through and load up all of prior files
     list_of_prior_files = glob.glob(dir + 'change_prior/LDA_out_all_SDSS_predictors_'+str(run)+'_0.*'+str(type_marginalized)+'.txt')
     print('length of prior files', len(list_of_prior_files))
@@ -233,7 +245,7 @@ if save_df:
     else:
         table_list = []
         for p in range(len(list_of_prior_files)):
-            
+            print('p prior', p)
             prior_file = pd.io.parsers.read_csv(filepath_or_buffer=list_of_prior_files[p],header=[0],sep='\t')
             # cut it way down
             if p == 0:
@@ -355,22 +367,32 @@ if save_df:
                     
                 plt.show()
                 
-            df_select = df_select[['ID']] # just take this because you don't need the other deets
+            print(ack)
+            if ack:
+                if len(df_select) <100:#== 0:
+                    f_merg_avg[centers_z[i],centers_mass[j]] = np.nan
+                    f_merg_std[centers_z[i],centers_mass[j]] = np.nan
+                else:
+                    f_merg_std[centers_z[i],centers_mass[j]] = 0
+                    f_merg_avg[centers_z[i],centers_mass[j]] = len(df_select[df_select['p_merger_avg'] > 0.95])/len(df_select)
+
+            else:
+                df_select = df_select[['ID']] # just take this because you don't need the other deets
             
 
-            merged = table.merge(df_select, on = 'ID')#left_on='ID', right_on='objID')
-            # for each column of p_merg, calculate the the f_merg and then find the median
-        
-
-            gt = (merged > 0.5).apply(np.count_nonzero)
+                merged = table.merge(df_select, on = 'ID')#left_on='ID', right_on='objID')
+                # for each column of p_merg, calculate the the f_merg and then find the median
             
-        
 
-            #fmerg_here = len(np.where(merged['p_merg_x'] > 0.5)[0])/len(merged)
+                gt = (merged > 0.5).apply(np.count_nonzero)
+                
             
-            #f_merg[centers_z[i]].append(fmerg_here)
-            f_merg_avg[centers_z[i],centers_mass[j]] = np.median(gt.values[1:]/len(merged))
-            f_merg_std[centers_z[i],centers_mass[j]] = np.std(gt.values[1:]/len(merged))
+
+                #fmerg_here = len(np.where(merged['p_merg_x'] > 0.5)[0])/len(merged)
+                
+                #f_merg[centers_z[i]].append(fmerg_here)
+                f_merg_avg[centers_z[i],centers_mass[j]] = np.median(gt.values[1:]/len(merged))
+                f_merg_std[centers_z[i],centers_mass[j]] = np.std(gt.values[1:]/len(merged))
     plt.show()
     
 
@@ -414,22 +436,32 @@ df_fmerg = df_fmerg[df_fmerg['flag']==0]
 df_fmerg = df_fmerg.dropna()
 print(df_fmerg)
 
+ind = 'S/N'
+
+# Do a 2D regression first with just mass and z:
+X = df_fmerg[[ind]] 
+
+y = df_fmerg['fmerg']
+## fit a OLS model with intercept on mass and z
+X = sm.add_constant(X)
+est = sm.OLS(y, X).fit()
+print(est.summary())
 
 # First, regress z and S/N:
 X = df_fmerg[['z']] 
-y = df_fmerg['S/N']
+y = df_fmerg[ind]
 X = sm.add_constant(X)
 est = sm.OLS(y, X).fit()
 print(est.summary())
 
-# Do a 2D regression first with just mass and z:
+# First, regress z and S/N:
 X = df_fmerg[['mass']] 
-
-y = df_fmerg['fmerg']
-## fit a OLS model with intercept on mass and z
+y = df_fmerg[ind]
 X = sm.add_constant(X)
 est = sm.OLS(y, X).fit()
 print(est.summary())
+
+
 
 
 # Do a 2D regression first with just mass and z:
@@ -438,6 +470,15 @@ if red == 'z_spec':
 else:
     X = df_fmerg[['mass', 'z']] 
 
+y = df_fmerg[ind]
+## fit a OLS model with intercept on mass and z
+X = sm.add_constant(X)
+est = sm.OLS(y, X).fit()
+print(est.summary())
+
+# Do a 2D regression:
+X = df_fmerg[['mass', 'z', 'S/N']] 
+
 y = df_fmerg['fmerg']
 ## fit a OLS model with intercept on mass and z
 X = sm.add_constant(X)
@@ -445,22 +486,7 @@ est = sm.OLS(y, X).fit()
 print(est.summary())
 
 # Do a 2D regression:
-if red == 'z_spec':
-    X = df_fmerg[['mass', 'z', 'B/T']] 
-else:
-    X = df_fmerg[['mass', 'z', 'S/N']] 
-
-y = df_fmerg['fmerg']
-## fit a OLS model with intercept on mass and z
-X = sm.add_constant(X)
-est = sm.OLS(y, X).fit()
-print(est.summary())
-
-# Do a 2D regression:
-if red == 'z_spec':
-    X = df_fmerg[['mass', 'z', 'S/N','B/T']] 
-else:
-    X = df_fmerg[['mass', 'z', 'S/N']] 
+X = df_fmerg[['mass', 'z', ind]] 
 
 y = df_fmerg['fmerg']
 ## fit a OLS model with intercept on mass and z
@@ -472,10 +498,7 @@ print(est.summary())
 
 
 # same thing but standardized
-if red == 'z_spec':
-    X = df_fmerg[['mass', 'z', 'S/N','B/T']] 
-else:
-    X = df_fmerg[['mass', 'z', 'S/N']] 
+X = df_fmerg[['mass', 'z', ind]] 
 
 from sklearn import preprocessing
 # l1, l2, max don't really make much of a difference
@@ -491,6 +514,7 @@ X_std = normalizer.transform(X)
 X = sm.add_constant(X_std)
 est = sm.OLS(y, X).fit()
 print(est.summary())
+
 
 
 

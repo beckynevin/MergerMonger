@@ -18,7 +18,6 @@ import numpy as np
 import astropy.io.fits as fits
 import matplotlib
 import matplotlib.pyplot as plt
-import scipy.stats
 from util_SDSS import download_galaxy
 from util_smelter import get_predictors
 
