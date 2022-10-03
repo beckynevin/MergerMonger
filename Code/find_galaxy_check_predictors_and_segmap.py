@@ -10,12 +10,6 @@ Requires: the LDA_out_* tables that have probability values and the SDSS_predict
 # import modules
 import pandas as pd
 import numpy as np
-from astropy.nddata import Cutout2D
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from astropy.wcs import WCS
-from astropy import coordinates as coords
-import astropy.io.fits as fits
 import os
 import matplotlib
 import matplotlib.pyplot as plt
@@ -26,7 +20,7 @@ from util_smelter import get_predictors
 from util_LDA import calculate_cdf, find_nearest
 
 
-
+'''
 appellido = 'dave_interp'
 
 # Get ID list instead from Dave's tables:
@@ -34,12 +28,12 @@ fits_table = fits.open('../Tables/breakbrd_objids.fits')
     #drpall-v3_1_1_objid.fits')
 
 ID_list = fits_table[1].data['objid']
-print('IDs', ID_list)
+'''
 
 
 # Step 1: import the SDSS galaxies
 
-merger_type = 'major_merger'
+merger_type = 'minor_merger'
 plot = True
 size = 80
  
@@ -89,8 +83,9 @@ lookup = pd.read_csv(prefix+'clean_df_run_segmap_edge.csv')
 
 
 
-#ID_list = [1237665179521187863,1237661069252231265,1237665329864114245]
-#appellido = 'ABC'
+ID_list = [1237665179521187863,1237661852010283046,1237648720718463286,
+           1237662306186428502,1237653589018018166,1237654383587492073]
+appellido = 'ABC'
 
 print('IDs',ID_list)
 print('appellido', appellido)
@@ -106,7 +101,8 @@ print('appellido', appellido)
 
 # Hector's galaxies
 #ID_list = [1237661125071208589, 1237654654171938965, 1237651212287475940, 1237659325489742089, 1237651273490628809, 1237661852007596057, 1237657878077702182, 1237667912748957839, 1237662665888956491, 1237655504567926924, 0, 1237664673793245248, 1237653009194090657, 1237667212116492386, 1237660024524046409, 1237654949448646674, 1237656496169943280, 1237663784217804830, 1237673706113925406, 1237656567042539991, 1237653587947815102, 1237651191354687536, 1237661387069194275, 1237651226784760247, 1237658204508258428, 1237661957225119836, 1237653589018018166, 1237651251482525781, 1237658802034573341, 1237663457241268416, 1237663529718841406, 1237651272956641566, 1237667910601932987, 1237659326029365299, 1237661852538437650, 1237665549422952539, 1237659327099896118, 1237651212287672564, 1237666299480309878, 1237657856607649901, 1237654952670789707, 1237654949448450067, 1237660241386143913, 1237652899700998392, 1237664837002395706, 1237654626785821087, 1237654391639638190]
-ID_list = [1237673706113925406,1237660024524046409]
+#ID_list = [1237673706113925406,1237660024524046409]
+ID_list = [1237653589018018166]
 
 print(len(ID_list))
 
@@ -199,8 +195,12 @@ for i in range(len(ID_list)):
     
     # get the corresponding cdf value:
     try:
-        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][4])
+        
+        
+        cdf = hist_dist.cdf(df_LDA.values[where_LDA][0][3])
+        
     except IndexError:
+        
         # This means there was no match
         continue
     cdf_list.append(cdf)
@@ -223,7 +223,7 @@ for i in range(len(ID_list)):
             
             
             # Now check out the predictors
-            
+            img = np.array(img)
             preds = get_predictors(id, img, prefix+'../', size)
             print('preds', preds)
             try:
@@ -291,11 +291,12 @@ for i in range(len(ID_list)):
             ax1 = fig.add_subplot(121)
             im1 = ax1.imshow(abs(np.fliplr(np.rot90(preds[0]))), norm=matplotlib.colors.LogNorm())#, origin = 'lower'
             ax1.set_title('Image, flag = \n'+str(flag_name))
-            ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][3],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][4],4))+
+            print(df_LDA.values[where_LDA][0])
+            ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+'\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+
                 '\nCDF = '+str(round(cdf,4))+
-                '\n'+str(df_LDA.values[where_LDA][0][6])+'\n'+str(df_LDA.values[where_LDA][0][8])+'\n'+str(df_LDA.values[where_LDA][0][10]), 
+                '\n'+str(df_LDA.values[where_LDA][0][4])+'\n'+str(df_LDA.values[where_LDA][0][6])+'\n'+str(df_LDA.values[where_LDA][0][8]), 
                 xy=(0.03, 0.7),  xycoords='axes fraction',
-            xytext=(0.03, 0.7), textcoords='axes fraction',
+            xytext=(0.03, 0.7), textcoords='axes fraction',size=7,
             bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
 
             if flag:
@@ -310,11 +311,11 @@ for i in range(len(ID_list)):
             ax2.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
                 ' M20 = '+str(round(df_predictors.values[where_predictors][4],2))+
                 '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+
-                '\nA = '+str(round(df_predictors.values[where_predictors][6],2))+
+                ' A = '+str(round(df_predictors.values[where_predictors][6],2))+
                 '\nS = '+str(round(df_predictors.values[where_predictors][7],2))+
-                '\nn = '+str(round(df_predictors.values[where_predictors][8],2))+
+                ' n = '+str(round(df_predictors.values[where_predictors][8],2))+
                 '\nA_S = '+str(round(df_predictors.values[where_predictors][9],2)), 
-                xy=(0.03, 0.55),  xycoords='axes fraction',
+                xy=(0.03, 0.55),  xycoords='axes fraction',size=7,
             xytext=(0.03, 0.55), textcoords='axes fraction',
             bbox=dict(boxstyle="round", fc="0.9", alpha=0.5), color='black')
             ax1.set_xticks([0, (shape - 1)/2, shape-1])
@@ -323,6 +324,53 @@ for i in range(len(ID_list)):
             ax1.set_yticklabels([-size/2, 0,size/2])
             ax1.set_xlabel('Arcsec')
             plt.savefig(prefix+'../Figures/ind_galaxies_classify/statmorph_check_'+str(id)+'_'+str(merger_type)+'_'+appellido+'.png', dpi=1000)
+            
+            # is this the correct way to do it?
+            fig = plt.figure()
+            ax1 = fig.add_subplot(121)
+            im1 = ax1.imshow(abs(np.fliplr(np.rot90(preds[0]))), norm=matplotlib.colors.LogNorm())#, origin = 'lower'
+            ax1.set_title(str(merger_type)+'\nImage, flag = \n'+str(flag_name))
+            ax1.annotate('LD1 = '+str(round(df_LDA.values[where_LDA][0][2],2))+
+                '\n$p_{\mathrm{merg}}$ = '+str(round(df_LDA.values[where_LDA][0][3],4))+
+                '\nCDF = '+str(round(cdf,4)), 
+                xy=(0.03, 0.75),  xycoords='axes fraction',
+            xytext=(0.03, 0.75), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9", alpha=0.6), color='black')
+
+            ax1.annotate(str(df_LDA.values[where_LDA][0][5])+' '+str(df_LDA.values[where_LDA][0][4])+
+                '\n'+str(df_LDA.values[where_LDA][0][7])+' '+str(df_LDA.values[where_LDA][0][6])+
+                '\n'+str(df_LDA.values[where_LDA][0][9])+' '+str(df_LDA.values[where_LDA][0][8]),
+                xy=(0.03, 0.08),  xycoords='axes fraction',
+            xytext=(0.03, 0.08), textcoords='axes fraction',size=6.5,
+            bbox=dict(boxstyle="round", fc="0.9", alpha=0.6), color='black')
+
+            if flag:
+                ax1.annotate('Photometric Flag', xy=(0.5, 0.85),  xycoords='axes fraction',
+            xytext=(0.5, 0.85), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9"), color='black')
+
+            ax2 = fig.add_subplot(122)
+            im2 = ax2.imshow(np.fliplr(np.rot90(preds[1])))
+            ax2.scatter(np.shape(segmap)[0]/2,np.shape(segmap)[0]/2, color='red')
+            ax2.set_title('Segmap, <S/N> = '+str(round(preds[10],2)))
+            ax2.annotate('Gini = '+str(round(df_predictors.values[where_predictors][3],2))+
+                r' $M_{20}$ = '+str(round(df_predictors.values[where_predictors][4],2))+
+                '\nC = '+str(round(df_predictors.values[where_predictors][5],2))+
+                ' A = '+str(round(df_predictors.values[where_predictors][6],2))+
+                ' S = '+str(round(df_predictors.values[where_predictors][7],2))+
+                '\nn = '+str(round(df_predictors.values[where_predictors][8],2))+
+                r' $A_S$ = '+str(round(df_predictors.values[where_predictors][9],2)), 
+                xy=(0.03, 0.75),  xycoords='axes fraction',
+            xytext=(0.03, 0.75), textcoords='axes fraction',
+            bbox=dict(boxstyle="round", fc="0.9", alpha=0.6), color='black')
+            ax1.set_xticks([0, (shape - 1)/2, shape-1])
+            ax1.set_xticklabels([-size/2, 0, size/2])
+            ax1.set_yticks([0, (shape- 1)/2,shape-1])
+            ax1.set_yticklabels([-size/2, 0,size/2])
+            ax1.set_xlabel('Arcsec')
+            ax2.set_xlabel('ObjID = '+str(id))
+            ax2.axis('off')
+            plt.savefig(prefix+'../Figures/ind_galaxies_classify/'+appellido+'/'+str(merger_type)+'/statmorph_check_'+str(id)+'_'+str(merger_type)+'.png', dpi=1000)
             if flag:
                 flag_list.append(1)
             else:
